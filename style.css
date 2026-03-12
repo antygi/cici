@@ -1,0 +1,535 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #2c3e50;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: url('assets/pozadi.png') center/cover no-repeat;
+    overflow: hidden;
+    /* Pokud to budeš chtít jako mobilní appku, tohle zajistí správné ořezání */
+}
+
+/* --- HORNÍ LIŠTA --- */
+.hud-top {
+    position: absolute;
+    top: 2vh; /* Relativní odstup odshora */
+    left: 2vw; /* Relativní odstup zleva */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1vh; /* Organická mezera mezi mincemi a blokem tlačítek */
+    z-index: 1;
+}
+/* Blok tlačítek - teď už taky ve sloupci */
+.hud-buttons {
+    display: flex;
+    flex-direction: column; /* Tlačítka pod sebou */
+    gap: 1vh; /* Organická mezera mezi tlačítky navzájem */
+    align-items: center;
+}
+
+.coin-display {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    padding: 0;
+    border: none;
+    font-size: clamp(0px,9vh,1000px);
+    font-weight: bold;
+}
+
+
+.coin-display img {
+    /* Změna z 70px na clamp */
+    width: clamp(0px, 5.5vw, 1000px); 
+    margin-right: 15px;
+    filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.8));
+    line-height: 1;
+}
+
+.image-button {
+    width: 7vw;   /* Stejná šířka jako ikonka mince */
+    height: 7vw;  /* Stejná výška */
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+    flex-shrink: 0; /* Zakáže smrsknutí na mobilu */
+}
+
+.image-button:hover {
+    transform: scale(1.1);
+}
+
+.image-button img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Zajistí, že se obrázek nedeformuje */
+}
+
+/* --- SPODNÍ LIŠTA --- */
+.hud-bottom {
+    position: absolute;
+    bottom: 2vh; /* Od spodu podle výšky okna */
+    left: 2vw;   /* Od leva podle šířky okna */
+    background: rgba(255, 255, 255, 0.9);
+    padding: clamp(10px, 1.5vh, 15px); /* Flexibilní výplň */
+    border-radius: 10px;
+    font-size: clamp(14px, 1.5vw, 20px); /* Flexibilní font */
+    font-weight: bold;
+    border: 3px solid #000;
+    z-index: 10;
+    max-width: 90vw; /* Pojistka pro hodně úzké obrazovky */
+}
+
+.version {
+    font-size: clamp(10px, 1vw, 12px);
+    font-weight: normal;
+    margin-top: 5px;
+    color: #555;
+}
+
+/* --- POSTAVA A STAGE --- */
+.stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#cici-character {
+    position: absolute; /* Vytrhneme Čiči z běžného řazení prvků */
+    bottom: 2vh;       /* Přikotvíme ji 25 % od spodního okraje okna */
+    left: 50%;          /* Posuneme ji do poloviny šířky okna... */
+    transform: translateX(-50%); /* ...a tímhle ji vycentrujeme přesně na střed */
+    
+    height: 70vh;
+    aspect-ratio: 350 / 450;
+    /* margin-top a margin-bottom už nepotřebujeme a mažeme je */
+}
+
+/* Všechny vrstvy oblečení se nacpou přesně přes sebe */
+#cici-character img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Hlavní tlačítko */
+.action-button {
+    padding: 15px 40px;
+    font-size: 24px;
+    font-weight: bold;
+    border: 4px solid #000;
+    border-radius: 15px;
+    cursor: pointer;
+    background-color: #fff;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.action-button:hover {
+    background-color: #f7ff6a; /* SVETLE_ZLUTA z tvého kódu */
+    transform: scale(1.05);
+}
+
+/* --- MODÁLNÍ OKNA (POP-UPY) --- */
+.modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+}
+
+.modal-content {
+    background: #fff;
+    padding: clamp(15px, 3vh, 30px); /* Responzivní padding */
+    border-radius: 15px;
+    border: 4px solid #000;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 95vw; /* Zabránění přetečení přes okraje na mobilu */
+    max-height: 95vh;
+}
+
+/* Učící okno */
+.study-content {
+    background: url('assets/learn_okno.png') center/cover no-repeat;
+    
+    /* ZDE JE OPRAVA: Krabice vybere tu menší hodnotu. 
+       Buď 90% šířky obrazovky, nebo výpočet založený na maximální povolené výšce (80vh). 
+       Tím pádem už NIKDY nenarazí do stropu neúměrně! */
+    width: min(90vw, calc(80vh * 1043 / 689)); 
+    max-width: 1200px;
+    
+    aspect-ratio: 1043 / 689; 
+
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
+    position: relative; 
+}
+
+/* Časovač - Vlevo nahoře */
+.study-content h2 {
+    position: absolute;
+    top: 10%;
+    left: 10%;
+    margin: 0;
+    
+    /* Vše převedeno na vmin. Bude to dýchat s velikostí okna. */
+    font-size: clamp(16px, 15vmin, 300px); 
+    padding: 1.5vmin 3vmin;
+    border: none;
+    background: none;
+    text-align: center;
+}
+
+/* Tlačítko Přestat se učit - Dole uprostřed */
+#stop-study-btn {
+    position: absolute;
+    bottom: 0%;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    /* I tlačítko teď používá vmin pro své rozměry */
+    font-size: clamp(14px, 3.5vmin, 36px);
+    padding: 1.5vmin 4vmin;
+    border-radius: 1.5vmin;
+    border: 0.4vmin solid #000;
+    
+    background-color: #cba62e;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#stop-study-btn:hover {
+    background-color: #ff1a1a;
+}
+
+/* Obchod */
+.shop-content {
+    width: 90vw; /* Skoro přes celou šířku */
+    height: 90vh; /* Skoro přes celou výšku */
+    display: flex;
+    flex-direction: column;
+    background-color: #f9f9f9;
+}
+
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: clamp(16px, 2vw, 24px);
+    font-weight: bold;
+    background: #000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: clamp(30px, 4vw, 40px);
+    height: clamp(30px, 4vw, 40px);
+}
+
+.shop-title {
+    font-size: clamp(24px, 4vw, 44px);
+    text-align: center;
+    margin-bottom: 2vh;
+    text-transform: uppercase;
+}
+
+.shop-tabs {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 2vh;
+}
+
+.tab-btn {
+    padding: clamp(8px, 1vh, 12px) clamp(15px, 2vw, 25px);
+    font-size: clamp(14px, 1.5vw, 20px);
+    border: 3px solid #000;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.tab-btn.active {
+    background: #f7ff6a;
+}
+
+.items-grid {
+    display: grid;
+    /* Pokud je obrazovka moc úzká (mobil), sloupec se zúží na 150px místo 200px */
+    grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 20vw, 200px), 1fr));
+    gap: clamp(10px, 2vw, 20px);
+    overflow-y: auto;
+    padding: 10px;
+    scrollbar-width: thin;
+}
+
+.shop-item {
+    border: 4px solid #000;
+    border-radius: 15px;
+    padding: clamp(10px, 1.5vw, 15px);
+    
+    /* Tohle je to magické kombo, které vše srovná doprostřed */
+    display: flex;
+    flex-direction: column;
+    align-items: center;      /* Zarovná krabici s obrázkem na střed */
+    justify-content: flex-start;
+    
+    background: #fff;
+    cursor: pointer;
+    transition: transform 0.1s;
+    text-align: center;       /* Zarovná samotný text na střed */
+}
+
+/* Kontejner pro obrázky v obchodě, aby se mohly překrývat */
+.shop-image-container {
+    position: relative;
+    width: clamp(80px, 10vw, 120px);
+    height: clamp(80px, 10vw, 120px);
+    margin-bottom: 15px;
+}
+
+/* Jakýkoliv obrázek uvnitř kontejneru bude absolutně pozicovaný přes sebe */
+.shop-image-container img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Z-index zajistí, že skin je vždy dole (1) a předmět nad ním (2) */
+.item-base-skin {
+    z-index: 1;
+}
+
+.item-main-img {
+    z-index: 2;
+}
+
+.shop-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.shop-item.owned {
+    background: #f3e5ab; /* VANILA barva z Pythonu */
+}
+
+.shop-item.equipped {
+    background: #7b7b7d; /* GREY barva z Pythonu */
+    border-color: #fff;
+}
+
+.shop-item img {
+    /* Místo natvrdých 120px se to přizpůsobí kartičce */
+    width: clamp(80px, 10vw, 120px);
+    height: clamp(80px, 10vw, 120px);
+    object-fit: contain;
+    margin-bottom: 15px;
+}
+
+.shop-item .item-name {
+    font-weight: bold;
+    font-size: clamp(14px, 1.5vw, 18px);
+    margin-bottom: 5px;
+}
+
+.shop-item .item-price {
+    font-size: clamp(12px, 1.2vw, 16px);
+}
+
+/* Potvrzovací okno */
+.confirm-content {
+    text-align: center;
+    min-width: 400px;
+}
+
+/* Potvrzovací okno */
+.confirm-content {
+    text-align: center;
+    width: clamp(300px, 50vw, 500px); /* Místo min-width */
+}
+
+.confirm-buttons {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap; /* Pokud se tlačítka nevejdou vedle sebe, skočí pod sebe */
+    gap: 2vw;
+}
+
+.yes-btn { background-color: #00ff00; } /* VANTA_GREEN */
+.no-btn { background-color: #ff0000; color: white; }
+
+/* Univerzální třída pro schování elementů */
+.hidden {
+    display: none !important;
+}
+
+#start-study-btn {
+    position: absolute;
+    bottom: 8vh; /* Vždy 12% od spodu obrazovky */
+    z-index: 20;
+    
+    /* Relativní text a padding */
+    font-size: clamp(18px, 2.5vw, 36px);
+    padding: clamp(10px, 1.5vh, 20px) clamp(20px, 4vw, 60px);
+}
+
+/* Přihlašovací okno */
+.login-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2vh;
+    width: clamp(300px, 80vw, 500px);
+    text-align: center;
+}
+
+.login-content h2 {
+    font-size: clamp(24px, 4vw, 40px);
+    margin-bottom: 1vh;
+}
+
+#username-input {
+    font-size: clamp(18px, 3vw, 24px);
+    padding: 10px;
+    width: 80%;
+    border: 3px solid #000;
+    border-radius: 8px;
+    text-align: center;
+    font-family: inherit;
+    outline: none;
+}
+
+#username-input:focus {
+    border-color: #f7ff6a;
+    box-shadow: 0 0 10px rgba(247, 255, 106, 0.5);
+}
+
+/* Zvýraznění jména hráče */
+#player-name-display {
+    color: #cba62e; /* Stejná zlatavá jako u tlačítka "Přestat se učit" */
+    font-weight: 900;
+}
+
+/* Tlačítko odhlásit se - vpravo dole */
+#logout-btn {
+    position: absolute;
+    bottom: 2vh;
+    right: 2vw;
+    z-index: 10;
+    
+    /* Je to malé tlačítko, takže font a padding jsou decentní */
+    padding: clamp(5px, 1vh, 10px) clamp(10px, 1.5vw, 15px);
+    font-size: clamp(10px, 1.2vw, 14px);
+    font-weight: bold;
+    font-family: inherit;
+    
+    background-color: #ff4d4d;
+    color: white;
+    border: 3px solid #000;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#logout-btn:hover {
+    transform: scale(1.1);
+    background-color: #ff1a1a;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 25px;
+    border-bottom: 2px solid #eee;
+    font-size: 1.2rem;
+}
+
+.leaderboard-item:nth-child(1) { background: #ffd70033; font-weight: bold; } /* Zlato */
+.leaderboard-item:nth-child(2) { background: #c0c0c033; } /* Stříbro */
+.leaderboard-item:nth-child(3) { background: #cd7f3233; } /* Bronz */
+
+.rank { width: 30px; font-weight: bold; }
+.p-name { flex-grow: 1; margin-left: 20px; }
+.p-time { font-family: monospace; }
+
+/* Úprava emoji, aby vypadalo jako tlačítko */
+.emoji-icon {
+    font-size: clamp(30px, 6vh, 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.8));
+}
+
+#leaderboard-modal .modal-content {
+    background: #fff;
+    max-width: 600px; /* Žebříček nemusí být tak široký jako obchod */
+    width: 90vw;
+}
+
+#leaderboard-list {
+    margin-top: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+#password-input {
+    font-size: clamp(18px, 3vw, 24px);
+    padding: 10px;
+    width: 80%;
+    border: 3px solid #000;
+    border-radius: 8px;
+    text-align: center;
+    font-family: inherit;
+    outline: none;
+    margin-top: 10px; /* Mezera mezi jménem a heslem */
+}
+
+#password-input:focus {
+    border-color: #f7ff6a;
+}
+
+#username-input, #password-input {
+    cursor: text;
+}

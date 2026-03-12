@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Study With Čiči</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#7f7f7f">
+</head>
+<body>
+    <div id="game-container">
+        
+        <div id="login-modal" class="modal">
+            <div class="modal-content login-content">
+                <h2>Study With Čiči</h2>
+                <p>Zadej jméno a heslo (pro registraci i přihlášení):</p>
+                <p>Všechny hesla vidím, tak si tam nedávej co máš všude.</p>
+                <input type="text" id="username-input" placeholder="Tvoje jméno..." autocomplete="off">
+                <input type="password" id="password-input" placeholder="Tvoje heslo..." autocomplete="off">
+                <button id="login-btn" class="action-button">Vstoupit</button>
+            </div>
+        </div>
+
+        <header class="hud-top">
+            <div class="coin-display">
+                <img src="assets/catcoin.png" alt="Catcoin">
+                <span id="coin-count">0</span>
+            </div> 
+            <div class="hud-buttons">
+                <button id="open-shop-btn" class="image-button">
+                    <img src="assets/obchod_button.png" alt="Obchod">
+                </button>
+                <button id="open-leaderboard-btn" class="image-button">
+                    <img src="assets/trophy_button.png" alt="Žebříček">
+                </button>
+            </div>
+        </header> 
+
+        <main class="stage">
+            <div id="cici-character">
+                <img id="layer-skin" src="assets/skin_default.png" alt="Skin">
+                <img id="layer-triko" src="" class="hidden">
+                <img id="layer-maska" src="" class="hidden">
+                <img id="layer-obojek" src="" class="hidden">
+                <img id="layer-cepice" src="" class="hidden">
+            </div>
+            <button id="start-study-btn" class="action-button main-action">Začni se učit</button>
+        </main>
+
+        <footer class="hud-bottom">
+            <p>Hráč: <span id="player-name-display">Neznámý</span></p>
+            <p>Celkově už se učíš:</p>
+            <p id="total-time-display">0 hodin 0 minut a 0 sekund</p>
+            <p class="version">v0.0.2 (Web Edition)</p>
+        </footer>
+
+        <button id="logout-btn">Odhlásit se</button>
+
+        <div id="study-modal" class="modal hidden">
+            <div class="modal-content study-content">
+                <h2 id="current-study-timer">00:00:00</h2>
+                <button id="stop-study-btn" class="action-button stop-button">Přestat se učit</button>
+            </div>
+        </div>
+
+        <div id="leaderboard-modal" class="modal hidden">
+            <div class="modal-content shop-content"> 
+                <button id="close-leaderboard-btn" class="close-btn">X</button>
+                <h2 class="shop-title">Budoucí doktoři</h2>
+                <div id="leaderboard-list"></div>
+            </div>
+        </div>
+
+        <div id="shop-modal" class="modal hidden">
+            <div class="modal-content shop-content">
+                <button id="close-shop-btn" class="close-btn">X</button>
+                <h2 class="shop-title">Obchod</h2>
+                <div class="shop-tabs">
+                    <button class="tab-btn active" data-category="skin">Skiny</button>
+                    <button class="tab-btn" data-category="cepice">Čepice</button>
+                    <button class="tab-btn" data-category="maska">Masky</button>
+                    <button class="tab-btn" data-category="obojek">Obojky</button>
+                    <button class="tab-btn" data-category="triko">Trika</button>
+                </div>
+                <div id="shop-items-grid" class="items-grid"></div>
+            </div>
+        </div>
+
+        <div id="confirm-modal" class="modal hidden">
+            <div class="modal-content confirm-content">
+                <p id="confirm-text">Opravdu to chceš udělat?</p>
+                <div class="confirm-buttons">
+                    <button id="confirm-yes" class="action-button yes-btn">✔ Ano</button>
+                    <button id="confirm-no" class="action-button no-btn">✖ Ne</button>
+                </div>
+            </div>
+        </div>
+
+    </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
