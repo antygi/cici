@@ -67,8 +67,16 @@ let currentShopCategory = 'skin';
 
 // --- INICIALIZACE ---
 function init() {
-    // Při spuštění nenačítáme HUD, protože ještě nevíme, kdo hraje!
     setupEventListeners();
+
+    const rememberedUser = localStorage.getItem('studywithcici_remembered_user');
+    const rememberedPass = localStorage.getItem('studywithcici_remembered_pass');
+
+    if (rememberedUser && rememberedPass) {
+        document.getElementById('username-input').value = rememberedUser;
+        document.getElementById('password-input').value = rememberedPass;
+        loginUser(); // Rovno spustíme přihlášení
+    }
 }
 
 
@@ -90,6 +98,9 @@ function loginUser() {
     const passwordInput = document.getElementById('password-input');
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
+
+    localStorage.setItem('studywithcici_remembered_user', username);
+    localStorage.setItem('studywithcici_remembered_pass', password);
 
     if (username === "" || password === "") {
         alert("Musíš zadat jméno i heslo!");
@@ -362,6 +373,9 @@ function setupEventListeners() {
 
     // Odhlášení
     document.getElementById('logout-btn').addEventListener('click', () => {
+        localStorage.removeItem('studywithcici_remembered_user');
+        localStorage.removeItem('studywithcici_remembered_pass');
+        
         saveData(); // Pro jistotu před odhlášením vše uložíme
         location.reload(); // F5 v kódu: Nejčistší způsob, jak apku zresetovat na přihlašovací obrazovku
     });
