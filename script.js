@@ -43,6 +43,7 @@ const ITEMS = [
 let currentUser = null; 
 let allUsers = {};      
 
+
 // Tohle je šablona pro nového hráče
 const DEFAULT_STATE = {
     coins: 0,
@@ -107,6 +108,9 @@ let currentPhase = 'learn'; // 'learn' nebo 'break'
 let phaseTimeLeft = 0;
 let learnDuration = 0;
 let breakDuration = 0;
+let pendingPostData = null;
+
+const bellSound = new Audio('assets/zvoneni.mp3');
 
 // --- INICIALIZACE ---
 function init() {
@@ -186,8 +190,15 @@ function loginUser() {
 // --- VYKRESLOVÁNÍ (UI) ---
 function updateHUD() {
     checkDateReset(); // Pro jistotu zkontrolujeme datum hned po přihlášení
-    document.getElementById('player-name-display').innerText = currentUser;
+    const nameDisplay = document.getElementById('player-name-display');
+    nameDisplay.innerText = currentUser;
+    nameDisplay.style.cursor = 'pointer';
+    nameDisplay.style.textDecoration = 'underline';
+    nameDisplay.onclick = () => showFeed('profile', currentUser);
     document.getElementById('coin-count').innerText = state.coins;
+    if (document.getElementById('shop-coin-count')) {
+        document.getElementById('shop-coin-count').innerText = state.coins;
+    }
     
     const hours = Math.floor(state.total_cas / 3600);
     const minutes = Math.floor((state.total_cas % 3600) / 60);
@@ -278,7 +289,11 @@ function showLeaderboard() {
             
             item.className = `leaderboard-item ${rankClass}`;
             
-            // Tady se streakHtml vkládá rovnou vedle jména hráče (${user.name})
+            // --- NOVÉ: Kliknutí na celý obdélník ---
+            item.onclick = () => showFeed('profile', user.name);
+            // ---------------------------------------
+            
+            // Smazali jsme onclick ze spanu p-name, protože se teď kliká na celý obdélník
             item.innerHTML = `
                 <div class="lb-rank">${index + 1}.</div>
                 <div class="mini-cici-lb">
@@ -289,7 +304,8 @@ function showLeaderboard() {
                     ${cepiceSrc ? `<img src="${cepiceSrc}" style="z-index: 5;">` : ''}
                 </div>
                 <div class="lb-info">
-                    <span class="p-name">${user.name} ${streakHtml}</span>
+                    <span class="p-name clickable-name">${user.name}</span>
+                    ${streakHtml}
                     <span class="p-time">⏱ ${formatTime(user.total_cas)}</span>
                 </div>
             `;
@@ -385,6 +401,23 @@ function formatTime(totalSeconds) {
 }
 
 function startStudy() {
+    // --- TRIK NA ODEMČENÍ ZVUKU PRO MOBILY A PROHLÍŽEČE ---
+    // Prohlížeč potřebuje, aby první přehrání zvuku bylo vyvoláno přímo kliknutím
+    if (typeof bellSound !== 'undefined') {
+        bellSound.volume = 0; // Ztlumíme ho, aby to neřvalo hned na začátku
+        bellSound.play().then(() => {
+            bellSound.pause(); // Hned ho stopneme
+            bellSound.currentTime = 0; // Vrátíme na začátek
+            bellSound.volume = 1; // Hlasitost dáme zpět na max pro skutečné zvonění
+        }).catch(err => console.log("Odemčení zvuku selhalo:", err));
+    }
+    // -------------------------------------------------------
+
+    // Zamknutí nastavení proti podvádění během učení
+    document.getElementById('study-mode').disabled = true;
+    document.getElementById('learn-time-input').disabled = true;
+    document.getElementById('break-time-input').disabled = true;
+
     const studyMode = document.getElementById('study-mode').value;
     
     studySeconds = 0;            // Celkový čas pro coiny se nuluje
@@ -432,6 +465,14 @@ function startStudy() {
             
             // Přepínání fází u Pomodora
             if (phaseTimeLeft <= 0) {
+                
+                // --- PŘEHRÁNÍ ZVUKU NA KONCI FÁZE ---
+                if (typeof bellSound !== 'undefined') {
+                    bellSound.currentTime = 0; // Vrátí zvuk na začátek
+                    bellSound.play().catch(err => console.log("Zvuk nešel přehrát:", err));
+                }
+                // ------------------------------------
+
                 if (currentPhase === 'learn') {
                     currentPhase = 'break';
                     phaseTimeLeft = breakDuration;
@@ -465,7 +506,6 @@ function togglePause() {
 }
 
 function stopStudy() {
-    // Odměna se teď počítá z celkového času (učení + pauzy)
     const earnedCoins = Math.floor(studySeconds / 180); 
     
     confirmAction('Opravdu chceš tohle sezení ukončit?', (agreed) => {
@@ -473,36 +513,36 @@ function stopStudy() {
             clearInterval(studyInterval);
             document.getElementById('study-modal').classList.add('hidden');
             
-            // --- LOGIKA STREAKŮ PŘI UKONČENÍ ---
-            checkDateReset(); 
-            state.daily_time += studySeconds; // Přičteme dnešní čas
+            document.getElementById('study-mode').disabled = false;
+            document.getElementById('learn-time-input').disabled = false;
+            document.getElementById('break-time-input').disabled = false;
             
-            // 3 minuty = 180s
-            if (state.daily_time >= 180 && !state.awarded_today.red) {
-                state.streaks.red++;
-                state.awarded_today.red = true;
-            }
-            // 1 hodina = 3600s
-            if (state.daily_time >= 3600 && !state.awarded_today.gold) {
-                state.streaks.gold++;
-                state.awarded_today.gold = true;
-            }
-            // 2 hodiny = 7200s
-            if (state.daily_time >= 7200 && !state.awarded_today.diamond) {
-                state.streaks.diamond++;
-                state.awarded_today.diamond = true;
-            }
+            // Logika streaků
+            checkDateReset(); 
+            state.daily_time += studySeconds;
+            
+            if (state.daily_time >= 180 && !state.awarded_today.red) { state.streaks.red++; state.awarded_today.red = true; }
+            if (state.daily_time >= 3600 && !state.awarded_today.gold) { state.streaks.gold++; state.awarded_today.gold = true; }
+            if (state.daily_time >= 7200 && !state.awarded_today.diamond) { state.streaks.diamond++; state.awarded_today.diamond = true; }
 
-            state.total_cas += studySeconds;
-            state.coins += earnedCoins;
-            saveData();
-            updateHUD();
+            // PŘÍPRAVA DAT PRO POST MÍSTO ALERTU
+            const mode = document.getElementById('study-mode').value;
+            const lTime = document.getElementById('learn-time-input').value;
+            const bTime = document.getElementById('break-time-input').value;
+            
+            pendingPostData = {
+                timestamp: Date.now(),
+                totalSeconds: studySeconds,
+                method: mode,
+                learnInput: mode === 'pomodoro' ? lTime : null,
+                breakInput: mode === 'pomodoro' ? bTime : null,
+                earnedCoins: earnedCoins // Odměnu si schováme na později
+            };
 
-            if (earnedCoins > 0) {
-                setTimeout(() => alert(`Vydělal sis ${earnedCoins} grošů, krásná práce!`), 100);
-            } else {
-                setTimeout(() => alert('Učil ses bohužel moc krátkou dobu :('), 100);
-            }
+            // Vymažeme starý text a ukážeme okno
+            document.getElementById('post-title').value = '';
+            document.getElementById('post-desc').value = '';
+            document.getElementById('post-create-modal').classList.remove('hidden');
         }
     });
 }
@@ -589,7 +629,12 @@ function renderFriends() {
             const item = document.createElement('div');
             item.className = 'friend-card';
             
-            // TADY JE ZMĚNA V HTML: Streak vložíme úplně nahoru, mimo friend-info
+            // --- NOVÉ: Kliknutí na celou kartičku ---
+            item.onclick = () => showFeed('profile', friendName);
+            // ----------------------------------------
+            
+            // Všimni si "event.stopPropagation();" u tlačítka remove-friend-btn! 
+            // To zabrání otevření profilu při mazání kamaráda.
             item.innerHTML = `
                 ${streakHtml}
                 
@@ -602,11 +647,11 @@ function renderFriends() {
                 </div>
                 
                 <div class="friend-info">
-                    <span class="friend-name">${friendName}</span>
+                    <span class="friend-name clickable-name">${friendName}</span>
                     <span class="friend-time">⏱ ${formatTime(data.total_cas || 0)}</span>
                 </div>
                 
-                <button class="remove-friend-btn" onclick="removeFriend('${friendName}')" title="Odebrat">❌</button>
+                <button class="remove-friend-btn" onclick="event.stopPropagation(); removeFriend('${friendName}')" title="Odebrat">❌</button>
             `;
             
             list.appendChild(item);
@@ -620,6 +665,118 @@ function removeFriend(name) {
         saveData();
         renderFriends();
     }
+}
+
+// --- LOGIKA POSTŮ A PROFILU ---
+function savePost() {
+    const title = document.getElementById('post-title').value.trim() || "Učeníčko";
+    const desc = document.getElementById('post-desc').value.trim();
+    
+    const newPost = {
+        ...pendingPostData,
+        title: title,
+        description: desc,
+        dateString: new Date().toLocaleString('cs-CZ')
+    };
+
+    if (!state.posts) state.posts = {};
+    state.posts[newPost.timestamp] = newPost;
+    
+    // Nyní přidělíme odložené coiny a čas
+    state.total_cas += pendingPostData.totalSeconds;
+    state.coins += pendingPostData.earnedCoins;
+    
+    saveData();
+    updateHUD();
+    
+    document.getElementById('post-create-modal').classList.add('hidden');
+    
+    // Nakonec ukážeme tu odměnu
+    if (pendingPostData.earnedCoins > 0) {
+        setTimeout(() => alert(`Vydělal sis ${pendingPostData.earnedCoins} grošů a tvůj post byl uložen!`), 100);
+    } else {
+        setTimeout(() => alert('Učil ses moc krátkou dobu, ale post jsme ti uložili.'), 100);
+    }
+    pendingPostData = null;
+}
+
+function showFeed(type, username = null) {
+    const list = document.getElementById('feed-list');
+    const title = document.getElementById('feed-title');
+    list.innerHTML = '<p style="text-align:center">Načítám...</p>';
+    document.getElementById('feed-modal').classList.remove('hidden');
+
+    if (type === 'profile') {
+        title.innerText = `Studijní deník: ${username}`;
+        db.ref('users/' + username).once('value').then(snapshot => {
+            const data = snapshot.val();
+            if (data && data.posts) {
+                renderPosts(Object.values(data.posts), list, username);
+            } else {
+                list.innerHTML = '<p style="text-align:center; margin-top:20px;">Zatím žádné záznamy o učení.</p>';
+            }
+        });
+    } else if (type === 'friends') {
+        title.innerText = "Novinky parťáků";
+        if (!state.friends || Object.keys(state.friends).length === 0) {
+            list.innerHTML = '<p style="text-align:center; margin-top:20px;">Zatím nikoho nesleduješ.</p>';
+            return;
+        }
+
+        const fetchPromises = Object.keys(state.friends).map(name => {
+            return db.ref('users/' + name + '/posts').once('value').then(snap => {
+                if (snap.exists()) {
+                    const posts = Object.values(snap.val());
+                    posts.forEach(p => p.author = name); // Přidáme k postu jméno kámoše
+                    return posts;
+                }
+                return [];
+            });
+        });
+
+        Promise.all(fetchPromises).then(results => {
+            let allPosts = [];
+            results.forEach(arr => allPosts = allPosts.concat(arr));
+            allPosts.sort((a, b) => b.timestamp - a.timestamp); // Nejnovější nahoře
+            const top10 = allPosts.slice(0, 10);
+            renderPosts(top10, list, null);
+        });
+    }
+}
+
+function renderPosts(postsArray, container, defaultAuthor) {
+    if (postsArray.length === 0) {
+        container.innerHTML = '<p style="text-align:center; margin-top:20px;">Zatím žádné záznamy o učení.</p>';
+        return;
+    }
+    
+    if (defaultAuthor) {
+        postsArray.sort((a, b) => b.timestamp - a.timestamp);
+    }
+
+    container.innerHTML = '';
+    postsArray.forEach(post => {
+        const author = post.author || defaultAuthor;
+        const methodText = post.method === 'pomodoro' 
+            ? `🍅 Pomodoro (${post.learnInput}m / ${post.breakInput}m)` 
+            : `⏱️ Klasika`;
+        
+        const div = document.createElement('div');
+        div.className = 'post-card';
+        div.innerHTML = `
+            <div class="post-header">
+                <span class="post-author">${author}</span>
+                <span class="post-date">${post.dateString}</span>
+            </div>
+            <h3 class="post-title">${post.title}</h3>
+            ${post.description ? `<p class="post-desc">${post.description}</p>` : ''}
+            <div class="post-footer">
+                <span>${methodText}</span>
+                <span>Čas: ${formatTime(post.totalSeconds)}</span>
+            </div>
+        `;
+        container.appendChild(div);
+    });
 }
 
 // --- EVENT LISTENERY ---
@@ -710,6 +867,16 @@ function setupEventListeners() {
         state.active_streak = e.target.value;
         saveData(); // Uloží to hned do Firebase
         updateHUD(); // Hned to překreslí nápis
+    });
+
+    document.getElementById('save-post-btn').addEventListener('click', savePost);
+    
+    document.getElementById('open-feed-btn').addEventListener('click', () => {
+        showFeed('friends');
+    });
+
+    document.getElementById('close-feed-btn').addEventListener('click', () => {
+        document.getElementById('feed-modal').classList.add('hidden');
     });
 }
 

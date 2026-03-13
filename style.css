@@ -473,6 +473,7 @@ body {
     gap: 15px;
     box-shadow: 0 4px 0px #000;
     transition: transform 0.1s;
+    cursor: pointer;
 }
 
 .leaderboard-item:hover {
@@ -603,6 +604,7 @@ body {
     box-shadow: 0 4px 0px #000;
     transition: transform 0.1s;
     overflow: hidden; /* Kdyby náhodou Čiči přelezla, ustřihne se to uvnitř karty */
+    cursor: pointer;
 }
 
 .friend-card:hover {
@@ -869,4 +871,156 @@ body {
     z-index: 20;
     /* Malý stín, aby ladil ke zbytku herního designu */
     box-shadow: 0 2px 0px #000; 
+}
+
+/* --- POSTY A PROFIL --- */
+.post-card {
+    background: #fff;
+    border: 3px solid #000;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: left;
+    box-shadow: 0 4px 0 #000;
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 2px dashed #ccc;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #555;
+}
+
+.post-author {
+    font-weight: bold;
+    color: #000;
+    font-size: 16px;
+}
+
+.post-title {
+    margin: 0 0 10px 0;
+    font-size: clamp(18px, 3vw, 22px);
+    color: #333;
+}
+
+.post-desc {
+    margin: 0 0 15px 0;
+    font-style: italic;
+    color: #555;
+    font-size: clamp(12px, 1.5vw, 15px);
+    line-height: 1.4;
+}
+
+.post-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: clamp(10px, 1.5vw, 13px);
+    font-family: monospace;
+    font-weight: bold;
+    background: #f0f0f0;
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+/* --- KLIKACÍ JMÉNA (PROFILY) --- */
+.clickable-name {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+/* --- OKNO PRO VYTVOŘENÍ POSTU --- */
+.post-create-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(10px, 2vh, 20px);
+    width: clamp(300px, 60vw, 600px); /* Není to tak roztáhlé jako obchod */
+    text-align: center;
+    background-color: #f9f9f9;
+}
+
+.post-create-content h2 {
+    font-size: clamp(24px, 4vw, 40px);
+    margin-bottom: 0;
+    color: #333;
+}
+
+.post-create-content p {
+    font-size: clamp(14px, 2vw, 18px);
+    color: #666;
+    margin-bottom: 5px;
+}
+
+/* Políčko pro nadpis (Předmět) */
+#post-title {
+    font-size: clamp(16px, 2.5vw, 24px);
+    padding: clamp(8px, 1vh, 15px);
+    width: 90%;
+    border: 3px solid #000;
+    border-radius: 8px;
+    text-align: center;
+    font-family: inherit;
+    outline: none;
+    transition: box-shadow 0.2s;
+}
+
+/* Velké políčko pro popis */
+#post-desc {
+    font-size: clamp(14px, 2vw, 18px);
+    padding: clamp(8px, 1vh, 15px);
+    width: 90%;
+    border: 3px solid #000;
+    border-radius: 8px;
+    font-family: inherit;
+    resize: none; /* Zakáže uživateli roztahovat okénko a kazit design */
+    outline: none;
+    transition: box-shadow 0.2s;
+}
+
+/* Zvýraznění při psaní (zlatavá záře) */
+#post-title:focus, #post-desc:focus {
+    border-color: #cba62e;
+    box-shadow: 0 0 10px rgba(203, 166, 46, 0.5);
+}
+
+/* Zelené tlačítko pro uložení */
+#save-post-btn {
+    margin-top: 10px;
+    font-size: clamp(16px, 2.5vw, 24px);
+    background-color: #4CAF50; /* Hezká potvrzovací zelená */
+    color: white;
+    border: 3px solid #000;
+}
+
+#save-post-btn:hover {
+    background-color: #45a049;
+    transform: scale(1.05);
+}
+
+/* --- MINCE V OBCHODĚ (Levý horní roh) --- */
+.shop-coins {
+    position: absolute;
+    top: 15px;
+    left: 20px; /* Trošku jsem to posunul, ať to není úplně nalepené na kraji */
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Větší mezera mezi mincí a číslem */
+    
+    /* VÝRAZNĚ ZVĚTŠENÝ TEXT */
+    font-size: clamp(24px, 4vw, 150px); 
+    font-weight: bold;
+    z-index: 10;
+    
+    /* Odstranili jsme: background, padding, border, box-shadow a border-radius */
+}
+
+/* Zvětšení, pokud používáš jako minci obrázek (<img>) */
+.shop-coins img {
+    /* Mnohem větší limity pro obrázek (až 60px) */
+    width: clamp(30px, 6vw, 150px); 
+    height: auto;
+    filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.5)); /* Lehký stín, ať mince lépe vynikne na bílém pozadí */
 }

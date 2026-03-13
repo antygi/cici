@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=14">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -37,6 +37,9 @@
                 </button>
                 <button id="open-friends-btn" class="image-button">
                     <span class="emoji-icon">👥</span>
+                </button>
+                <button id="open-feed-btn" class="image-button">
+                    <span class="emoji-icon">📰</span>
                 </button>
             </div>
 
@@ -88,7 +91,7 @@
                 </select>
                 <span id="current-streak-display">🔥 0</span>
             </div>
-            <p class="version">v0.0.4 (Pomodoro Update)</p>
+            <p class="version">v0.1.0 (První funkční verze)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -131,8 +134,14 @@
 
         <div id="shop-modal" class="modal hidden">
             <div class="modal-content shop-content">
+                
+                <div class="shop-coins">
+                    <img src="assets/catcoin.png" img>
+                    <span id="shop-coin-count">0</span>
+                </div>
                 <button id="close-shop-btn" class="close-btn">X</button>
                 <h2 class="shop-title">Obchod</h2>
+                
                 <div class="shop-tabs">
                     <button class="tab-btn active" data-category="skin">Skiny</button>
                     <button class="tab-btn" data-category="cepice">Čepice</button>
@@ -140,7 +149,27 @@
                     <button class="tab-btn" data-category="obojek">Obojky</button>
                     <button class="tab-btn" data-category="triko">Trika</button>
                 </div>
+                
                 <div id="shop-items-grid" class="items-grid"></div>
+            </div>
+        </div>
+        
+        <div id="post-create-modal" class="modal hidden">
+            <div class="modal-content login-content">
+                <h2>Konec učení!</h2>
+                <p>Zapiš si, co ses naučil (nebo to nech prázdné):</p>
+                <input type="text" id="post-title" placeholder="Co ses učil? (např. Biologie)" autocomplete="off">
+                <textarea id="post-desc" placeholder="Bližší popis učiva (volitelné)..." rows="3" 
+                    style="width: 80%; padding: 10px; border: 3px solid #000; border-radius: 8px; font-family: inherit; resize: none; margin-top: 5px;"></textarea>
+                <button id="save-post-btn" class="action-button" style="margin-top: 15px;">Uložit post a vybrat odměnu</button>
+            </div>
+        </div>
+
+        <div id="feed-modal" class="modal hidden">
+            <div class="modal-content shop-content" style="max-width: 600px;">
+                <button id="close-feed-btn" class="close-btn">X</button>
+                <h2 id="feed-title" class="shop-title">Příspěvky</h2>
+                <div id="feed-list" style="margin-top: 10px; padding-right: 10px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;"></div>
             </div>
         </div>
 
@@ -156,6 +185,6 @@
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=13"></script>
+    <script src="script.js?v=14"></script>
 </body>
 </html>

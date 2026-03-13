@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v2';
+const CACHE_NAME = 'studywithcici-pwa-v3';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -39,7 +39,10 @@ const ASSETS_TO_CACHE = [
     // Čepice
     './assets/cepice_hello-kitty.png',
     './assets/cepice_jindra.png',
-    './assets/cepice_koruna.png'
+    './assets/cepice_koruna.png',
+
+    // Zvuky
+    '.assets/zvoneni.mp3'
 ];
 
 // 1. Fáze INSTALACE: Service worker se nainstaluje a stáhne soubory do Cache
