@@ -928,16 +928,22 @@ window.onload = init;
 // --- REGISTRACE SERVICE WORKERA A AUTOMATICKÝ UPDATE ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        // OPRAVENO: Žádný vygenerovaný čas, jen čistý odkaz!
         navigator.serviceWorker.register('./sw.js')
             .then(registration => {
                 console.log('PWA zaregistrováno.');
+                
+                // NOVÉ: Okamžitá a agresivní kontrola updatu při každém zapnutí
+                registration.update(); 
+                
+                // Můžeš přidat i pravidelnou kontrolu (např. každou hodinu, pokud má hráč hru zapnutou dlouho)
+                setInterval(() => {
+                    registration.update();
+                }, 1000 * 60 * 60);
             })
             .catch(error => {
                 console.error('Chyba registrace PWA:', error);
             });
 
-        // TOTO ZAŘÍDÍ AUTOMATICKÝ REFRESH PŘI UPDATU (teď už jen 1x!)
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!refreshing) {
