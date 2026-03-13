@@ -944,11 +944,22 @@ if ('serviceWorker' in navigator) {
                 console.error('Chyba registrace PWA:', error);
             });
 
+        // TOTO ZAŘÍDÍ AUTOMATICKÝ REFRESH PŘI UPDATU (Ale bezpečně!)
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!refreshing) {
-                window.location.reload();
-                refreshing = true;
+                // Zkontrolujeme, jestli běží časovač NEBO jestli hráč zrovna píše post
+                const isStudying = !document.getElementById('study-modal').classList.contains('hidden');
+                const isPosting = !document.getElementById('post-create-modal').classList.contains('hidden');
+                
+                if (isStudying || isPosting) {
+                    // Hráč se učí nebo zrovna píše deník! Necháme ho v klidu dokončit práci.
+                    console.log("Nová verze stažena, ale hráč je zaneprázdněn. Čekám na manuální refresh.");
+                } else {
+                    // Hráč je v menu, v obchodě nebo u přátel, můžeme bezpečně refreshnout
+                    window.location.reload();
+                    refreshing = true;
+                }
             }
         });
     });
