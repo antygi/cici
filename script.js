@@ -54,14 +54,59 @@ const DEFAULT_STATE = {
         maska: null,
         cepice: null,
         obojek: null
-    }
+    },
+    daily_time: 0,
+    last_date: new Date().toDateString(),
+    streaks: { red: 0, gold: 0, diamond: 0 },
+    awarded_today: { red: false, gold: false, diamond: false },
+    active_streak: 'red'
 };
 
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE)); 
 
+// --- FUNKCE PRO HLÍDÁNÍ PADÁNÍ STREAKŮ ---
+function checkDateReset() {
+    // Bezpečnostní pojistka pro staré účty, aby jim to nespadlo
+    if (!state.streaks) state.streaks = { red: 0, gold: 0, diamond: 0 };
+    if (!state.awarded_today) state.awarded_today = { red: false, gold: false, diamond: false };
+    if (!state.last_date) state.last_date = new Date().toDateString();
+    if (!state.daily_time) state.daily_time = 0;
+    if (!state.active_streak) state.active_streak = 'red';
+
+    const today = new Date().toDateString();
+    
+    if (state.last_date !== today) {
+        // Počítáme, kolik dní hráč chyběl
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const daysDiff = Math.floor((new Date(today) - new Date(state.last_date)) / msPerDay);
+        
+        if (daysDiff > 1) {
+            // Chyběl víc než 1 den -> ztrácí všechny streaky
+            state.streaks = { red: 0, gold: 0, diamond: 0 };
+        } else if (daysDiff === 1) {
+            // Přišel přesně další den -> pokud včera streak nezískal, spadne na nulu
+            if (!state.awarded_today.red) state.streaks.red = 0;
+            if (!state.awarded_today.gold) state.streaks.gold = 0;
+            if (!state.awarded_today.diamond) state.streaks.diamond = 0;
+        }
+        
+        // Dneska je nový den, nulujeme dnešní počítadlo
+        state.daily_time = 0;
+        state.awarded_today = { red: false, gold: false, diamond: false };
+        state.last_date = today;
+    }
+}
+
+
+
 let studyInterval = null;
 let studySeconds = 0;
 let currentShopCategory = 'skin';
+let isPaused = false;
+let currentPhase = 'learn'; // 'learn' nebo 'break'
+let phaseTimeLeft = 0;
+let learnDuration = 0;
+let breakDuration = 0;
 
 // --- INICIALIZACE ---
 function init() {
@@ -140,6 +185,7 @@ function loginUser() {
 
 // --- VYKRESLOVÁNÍ (UI) ---
 function updateHUD() {
+    checkDateReset(); // Pro jistotu zkontrolujeme datum hned po přihlášení
     document.getElementById('player-name-display').innerText = currentUser;
     document.getElementById('coin-count').innerText = state.coins;
     
@@ -147,6 +193,15 @@ function updateHUD() {
     const minutes = Math.floor((state.total_cas % 3600) / 60);
     const seconds = state.total_cas % 60;
     document.getElementById('total-time-display').innerText = `${hours} hodin ${minutes} minut a ${seconds} sekund`;
+    
+    // Obnova výběru streaku
+    const streakSel = document.getElementById('streak-selector');
+    if (streakSel) streakSel.value = state.active_streak || 'red';
+    
+    // Zobrazení ikonky a čísla
+    const icons = { red: '🔥', gold: '⭐', diamond: '💎' };
+    const currentCount = state.streaks[state.active_streak || 'red'];
+    document.getElementById('current-streak-display').innerText = `${icons[state.active_streak || 'red']} ${currentCount}`;
 }
 
 function updateCharacter() {
@@ -185,8 +240,10 @@ function showLeaderboard() {
             usersArray.push({
                 name: name,
                 total_cas: data[name].total_cas || 0,
-                // Načteme i oblečení hráče
-                equipped: data[name].equipped_items || {} 
+                equipped: data[name].equipped_items || {},
+                // Načteme streaky z databáze
+                streaks: data[name].streaks || {},
+                active_streak: data[name].active_streak || 'red'
             });
         }
 
@@ -194,8 +251,6 @@ function showLeaderboard() {
 
         list.innerHTML = '';
         usersArray.slice(0, 10).forEach((user, index) => {
-            
-            // Stejná magie jako u přátel: Hledáme cestu k obrázku v ITEMS
             const getImageFromName = (itemName, isSkin = false) => {
                 if (!itemName) return isSkin ? 'assets/skin_default.png' : '';
                 const foundItem = ITEMS.find(i => i.nazev === itemName);
@@ -208,8 +263,14 @@ function showLeaderboard() {
             const obojekSrc = getImageFromName(user.equipped.obojek);
             const cepiceSrc = getImageFromName(user.equipped.cepice);
 
+            // --- TADY JE TEN NOVÝ KÓD PRO STREAK V ŽEBŘÍČKU ---
+            const activeStreak = user.active_streak;
+            const streakCount = user.streaks[activeStreak] || 0;
+            const icons = { red: '🔥', gold: '⭐', diamond: '💎' };
+            const streakHtml = `<span class="player-streak">${icons[activeStreak]} ${streakCount}</span>`;
+            // --------------------------------------------------
+
             const item = document.createElement('div');
-            // Přidáme speciální třídu pro top 3, abychom je mohli obarvit
             let rankClass = '';
             if (index === 0) rankClass = 'rank-gold';
             else if (index === 1) rankClass = 'rank-silver';
@@ -217,6 +278,7 @@ function showLeaderboard() {
             
             item.className = `leaderboard-item ${rankClass}`;
             
+            // Tady se streakHtml vkládá rovnou vedle jména hráče (${user.name})
             item.innerHTML = `
                 <div class="lb-rank">${index + 1}.</div>
                 <div class="mini-cici-lb">
@@ -227,7 +289,7 @@ function showLeaderboard() {
                     ${cepiceSrc ? `<img src="${cepiceSrc}" style="z-index: 5;">` : ''}
                 </div>
                 <div class="lb-info">
-                    <span class="p-name">${user.name}</span>
+                    <span class="p-name">${user.name} ${streakHtml}</span>
                     <span class="p-time">⏱ ${formatTime(user.total_cas)}</span>
                 </div>
             `;
@@ -323,24 +385,114 @@ function formatTime(totalSeconds) {
 }
 
 function startStudy() {
-    studySeconds = 0;
-    document.getElementById('current-study-timer').innerText = "00:00:00";
+    const studyMode = document.getElementById('study-mode').value;
+    
+    studySeconds = 0;            // Celkový čas pro coiny se nuluje
+    isPaused = false;            // Vypneme případnou pauzu z minula
+
+    // Reset UI pauzovacího tlačítka
+    const pauseBtn = document.getElementById('pause-study-btn');
+    pauseBtn.innerText = "⏸ Pauza";
+    pauseBtn.style.backgroundColor = "#f0ad4e";
+
+    if (studyMode === 'pomodoro') {
+        // --- POMODORO LOGIKA ---
+        const lInput = parseInt(document.getElementById('learn-time-input').value) || 25;
+        const bInput = parseInt(document.getElementById('break-time-input').value) || 5;
+
+        learnDuration = lInput * 60;
+        breakDuration = bInput * 60;
+        currentPhase = 'learn';
+        phaseTimeLeft = learnDuration;
+
+        document.getElementById('current-phase-text').innerText = "📚 Čas se učit!";
+        document.getElementById('phase-timer').innerText = formatTime(phaseTimeLeft);
+        
+        document.getElementById('total-session-time').classList.remove('hidden');
+        document.getElementById('total-session-time').innerText = `Učíš se už: 00:00:00`;
+    } else {
+        // --- KLASICKÉ STOPKY LOGIKA ---
+        document.getElementById('current-phase-text').innerText = "⏱️ Klasické učení";
+        document.getElementById('phase-timer').innerText = "00:00:00";
+        
+        // V klasickém učení schováme malý text celkového času, protože velký timer ukazuje to samé
+        document.getElementById('total-session-time').classList.add('hidden');
+    }
+
     document.getElementById('study-modal').classList.remove('hidden');
 
+    // Spuštění univerzálního odpočtu
     studyInterval = setInterval(() => {
-        studySeconds++;
-        document.getElementById('current-study-timer').innerText = formatTime(studySeconds);
+        if (isPaused) return; // KOUZLO: Pokud klikneš na Pauzu, tento tik se přeskočí!
+
+        studySeconds++; // Sekundy do celkového času a pro Catcoiny rostou vždy
+
+        if (studyMode === 'pomodoro') {
+            phaseTimeLeft--; 
+            
+            // Přepínání fází u Pomodora
+            if (phaseTimeLeft <= 0) {
+                if (currentPhase === 'learn') {
+                    currentPhase = 'break';
+                    phaseTimeLeft = breakDuration;
+                    document.getElementById('current-phase-text').innerText = "☕ Přestávka!";
+                } else {
+                    currentPhase = 'learn';
+                    phaseTimeLeft = learnDuration;
+                    document.getElementById('current-phase-text').innerText = "📚 Čas se učit!";
+                }
+            }
+            document.getElementById('phase-timer').innerText = formatTime(phaseTimeLeft);
+            document.getElementById('total-session-time').innerText = `Učíš se už: ${formatTime(studySeconds)}`;
+        } else {
+            // U klasických stopek jen aktualizujeme hlavní časovač nahoru
+            document.getElementById('phase-timer').innerText = formatTime(studySeconds);
+        }
     }, 1000);
 }
 
+function togglePause() {
+    isPaused = !isPaused;
+    const btn = document.getElementById('pause-study-btn');
+    
+    if (isPaused) {
+        btn.innerText = "▶ Pokračovat";
+        btn.style.backgroundColor = "#4CAF50"; // Zelená pro play
+    } else {
+        btn.innerText = "⏸ Pauza";
+        btn.style.backgroundColor = "#f0ad4e"; // Oranžová zpět
+    }
+}
+
 function stopStudy() {
+    // Odměna se teď počítá z celkového času (učení + pauzy)
     const earnedCoins = Math.floor(studySeconds / 180); 
     
-    confirmAction('Opravdu se chceš přestat učit?', (agreed) => {
+    confirmAction('Opravdu chceš tohle sezení ukončit?', (agreed) => {
         if (agreed) {
             clearInterval(studyInterval);
             document.getElementById('study-modal').classList.add('hidden');
             
+            // --- LOGIKA STREAKŮ PŘI UKONČENÍ ---
+            checkDateReset(); 
+            state.daily_time += studySeconds; // Přičteme dnešní čas
+            
+            // 3 minuty = 180s
+            if (state.daily_time >= 180 && !state.awarded_today.red) {
+                state.streaks.red++;
+                state.awarded_today.red = true;
+            }
+            // 1 hodina = 3600s
+            if (state.daily_time >= 3600 && !state.awarded_today.gold) {
+                state.streaks.gold++;
+                state.awarded_today.gold = true;
+            }
+            // 2 hodiny = 7200s
+            if (state.daily_time >= 7200 && !state.awarded_today.diamond) {
+                state.streaks.diamond++;
+                state.awarded_today.diamond = true;
+            }
+
             state.total_cas += studySeconds;
             state.coins += earnedCoins;
             saveData();
@@ -412,9 +564,8 @@ function renderFriends() {
         list.innerHTML = '';
         validFriends.forEach(data => {
             const friendName = data.name;
-            const equipped = data.equipped_items || {}; // Změněno na equipped_items
+            const equipped = data.equipped_items || {};
 
-            // TADY JE TA MAGIE: Hledáme cestu k obrázku v ITEMS podle názvu z databáze
             const getImageFromName = (itemName, isSkin = false) => {
                 if (!itemName) return isSkin ? 'assets/skin_default.png' : '';
                 const foundItem = ITEMS.find(i => i.nazev === itemName);
@@ -427,10 +578,21 @@ function renderFriends() {
             const obojekSrc = getImageFromName(equipped.obojek);
             const cepiceSrc = getImageFromName(equipped.cepice);
 
+            // --- TADY JSOU STREAKY PŘÁTEL ---
+            const activeStreak = data.active_streak || 'red';
+            const streakCount = data.streaks ? data.streaks[activeStreak] || 0 : 0;
+            const icons = { red: '🔥', gold: '⭐', diamond: '💎' };
+            
+            // TADY JE ZMĚNA: Použijeme tu novou CSS třídu .friend-streak
+            const streakHtml = `<div class="friend-streak">${icons[activeStreak]} ${streakCount}</div>`;
+
             const item = document.createElement('div');
             item.className = 'friend-card';
             
+            // TADY JE ZMĚNA V HTML: Streak vložíme úplně nahoru, mimo friend-info
             item.innerHTML = `
+                ${streakHtml}
+                
                 <div class="mini-cici">
                     <img src="${skinSrc}" alt="Skin" style="z-index: 1;">
                     ${trikoSrc ? `<img src="${trikoSrc}" style="z-index: 2;">` : ''}
@@ -487,6 +649,17 @@ function setupEventListeners() {
 
     document.getElementById('start-study-btn').addEventListener('click', startStudy);
     document.getElementById('stop-study-btn').addEventListener('click', stopStudy);
+    document.getElementById('pause-study-btn').addEventListener('click', togglePause);
+
+    // Skrývání a ukazování nastavení Pomodora
+    document.getElementById('study-mode').addEventListener('change', (e) => {
+        const pomodoroSettings = document.getElementById('pomodoro-settings');
+        if (e.target.value === 'pomodoro') {
+            pomodoroSettings.classList.remove('hidden');
+        } else {
+            pomodoroSettings.classList.add('hidden');
+        }
+    });
 
     document.getElementById('open-shop-btn').addEventListener('click', () => {
         renderShop(currentShopCategory);
@@ -532,7 +705,14 @@ function setupEventListeners() {
     });
 
     document.getElementById('add-friend-btn').addEventListener('click', addFriend);
+    
+    document.getElementById('streak-selector').addEventListener('change', (e) => {
+        state.active_streak = e.target.value;
+        saveData(); // Uloží to hned do Firebase
+        updateHUD(); // Hned to překreslí nápis
+    });
 }
+
 
 // Spuštění po načtení stránky
 window.onload = init;

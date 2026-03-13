@@ -80,19 +80,22 @@ body {
     object-fit: contain; /* Zajistí, že se obrázek nedeformuje */
 }
 
-/* --- SPODNÍ LIŠTA --- */
+/* --- SPODNÍ LIŠTA (Hráč a čas) --- */
 .hud-bottom {
     position: absolute;
-    bottom: 2vh; /* Od spodu podle výšky okna */
-    left: 2vw;   /* Od leva podle šířky okna */
+    bottom: 2vh; 
+    left: 2vw;  
     background: rgba(255, 255, 255, 0.9);
-    padding: clamp(10px, 1.5vh, 15px); /* Flexibilní výplň */
-    border-radius: 10px;
-    font-size: clamp(14px, 1.5vw, 20px); /* Flexibilní font */
+    
+    /* Extrémnější hodnoty pro minimální velikost (první číslo v clamp) */
+    padding: clamp(4px, 1.5vh, 20px) clamp(5px, 1.5vw, 25px);
+    font-size: clamp(8px, 1.5vw, 20px); 
+    border: clamp(1px, 0.5vh, 4px) solid #000;
+    border-radius: clamp(4px, 1vw, 15px);
+    
     font-weight: bold;
-    border: 3px solid #000;
     z-index: 10;
-    max-width: 90vw; /* Pojistka pro hodně úzké obrazovky */
+    max-width: 90vw; 
 }
 
 .version {
@@ -212,24 +215,6 @@ body {
     text-align: center;
 }
 
-/* Tlačítko Přestat se učit - Dole uprostřed */
-#stop-study-btn {
-    position: absolute;
-    bottom: 0%;
-    left: 50%;
-    transform: translateX(-50%);
-    
-    /* I tlačítko teď používá vmin pro své rozměry */
-    font-size: clamp(14px, 3.5vmin, 36px);
-    padding: 1.5vmin 4vmin;
-    border-radius: 1.5vmin;
-    border: 0.4vmin solid #000;
-    
-    background-color: #cba62e;
-    color: white;
-    cursor: pointer;
-    font-weight: bold;
-}
 
 #stop-study-btn:hover {
     background-color: #ff1a1a;
@@ -404,10 +389,11 @@ body {
 
 #start-study-btn {
     position: absolute;
-    bottom: 8vh; /* Vždy 12% od spodu obrazovky */
+    bottom: 8vh; 
+    /* Vynutíme si, aby bylo tlačítko VŽDY přesně uprostřed */
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 20;
-    
-    /* Relativní text a padding */
     font-size: clamp(18px, 2.5vw, 36px);
     padding: clamp(10px, 1.5vh, 20px) clamp(20px, 4vw, 60px);
 }
@@ -699,4 +685,188 @@ body {
 
 .remove-friend-btn:hover {
     background: #ff1a1a;
+}
+
+/* --- NASTAVENÍ UČENÍ (Classic / Pomodoro) --- */
+.study-controls {
+    position: absolute;
+    bottom: 8vh; 
+    left: 50%;
+    /* 110px je bezpečné minimum, protože hlavní tlačítko se pod určitou hranici nezmenší */
+    margin-left: clamp(110px, 20vw, 350px); 
+    
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2px, 1vh, 15px); 
+    background: rgba(255, 255, 255, 0.9);
+    padding: clamp(4px, 1vh, 20px) clamp(5px, 2vw, 40px);
+    border: clamp(1px, 0.5vh, 4px) solid #000;
+    border-radius: clamp(4px, 1vw, 15px);
+    z-index: 40;
+    align-items: center;
+}
+
+.study-mode-selector {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-weight: bold;
+    font-size: clamp(9px, 1.8vw, 26px);
+}
+
+.study-mode-selector select {
+    padding: clamp(1px, 0.5vh, 8px) clamp(2px, 1vw, 15px);
+    font-weight: bold;
+    border: 2px solid #000;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: clamp(9px, 1.5vw, 20px);
+}
+
+.study-settings {
+    display: flex;
+    gap: clamp(5px, 2vw, 25px);
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-weight: bold;
+    font-size: clamp(9px, 1.5vw, 20px);
+}
+
+.setting-group input {
+    width: clamp(25px, 5vw, 80px); 
+    font-size: clamp(10px, 1.8vw, 22px); 
+    text-align: center;
+    border: 2px solid #000;
+    border-radius: 5px;
+    margin-top: 5px;
+    font-family: monospace;
+}
+
+/* --- UPRAVENÉ UČÍCÍ OKNO --- */
+.phase-title {
+    position: absolute;
+    top: 5%; /* Umístěno nahoře, nad časomírou */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(20px, 4vmin, 40px);
+    background: #fff;
+    padding: 5px 15px;
+    border: 3px solid #000;
+    border-radius: 10px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Hlavní odpočet teď musí být přesně vycentrovaný */
+.study-content h2#phase-timer {
+    position: absolute;
+    top: 25%; /* Vertikálně doprostřed */
+    left: 50%; /* Horizontálně doprostřed */
+    transform: translate(-50%, -50%); /* Skutečné vycentrování oběma směry */
+    margin: 0;
+    font-size: clamp(40px, 12vmin, 150px); 
+    border: none;
+    background: none;
+    text-align: center;
+    width: 100%;
+}
+
+/* Celkový čas - vlevo pod časomírou */
+.session-total {
+    position: absolute;
+    top: 80%; /* Spodní část okna (pod časomírou) */
+    left: 10%; /* Posunuto doleva */
+    font-size: clamp(14px, 2.5vmin, 24px);
+    font-weight: bold;
+    color: #333;
+    text-align: left;
+}
+
+/* Dvě tlačítka (Pauza a Ukončit) vedle sebe */
+.study-buttons {
+    position: absolute;
+    bottom: 8%; /* Úplně dole */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: row; /* Zaručí, že budou vždy VEDLE sebe */
+    justify-content: center;
+    align-items: center;
+    gap: 2vw; /* Rozestup mezi tlačítky */
+    width: 100%;
+}
+
+.pause-button {
+    background-color: #f0ad4e;
+    color: white;
+    font-size: clamp(14px, 3vmin, 24px) !important;
+    padding: 1vmin 3vmin !important;
+}
+
+.stop-button {
+    background-color: #ff4d4d !important;
+    color: white;
+    font-size: clamp(14px, 3vmin, 24px) !important;
+    padding: 1vmin 3vmin !important;
+}
+
+/* --- STREAKY UI (Plně responzivní) --- */
+.streak-selector-container {
+    margin-top: clamp(3px, 1vh, 10px);
+    /* Velikost písma dýchá stejně jako zbytek footeru */
+    font-size: clamp(8px, 1.5vw, 20px); 
+    display: flex;
+    align-items: center;
+    gap: clamp(2px, 0.5vw, 5px);
+}
+
+.streak-selector-container select {
+    font-size: inherit; /* Převezme responzivní velikost z kontejneru */
+    font-weight: bold;
+    padding: clamp(1px, 0.2vh, 4px) clamp(2px, 0.5vw, 8px);
+    border: clamp(1px, 0.2vh, 2px) solid #000;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #fff;
+    font-family: inherit;
+}
+
+#current-streak-display {
+    font-weight: bold;
+    /* Ikonka a číslo streaku můžou být o malinko větší */
+    font-size: clamp(10px, 1.8vw, 22px); 
+    margin-left: clamp(3px, 0.5vw, 8px);
+}
+
+/* Třída pro zobrazení ikonky u jména v žebříčku a přátelích */
+.player-streak {
+    font-weight: bold;
+    font-size: clamp(10px, 1.2vw, 14px);
+    margin-left: 5px;
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    display: inline-block;
+}
+
+/* --- STREAK U PŘÁTEL (Levý horní roh) --- */
+.friend-streak {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    font-weight: bold;
+    font-size: 11px;
+    background: #fff;
+    padding: 2px 6px;
+    border: 2px solid #000;
+    border-radius: 5px;
+    z-index: 20;
+    /* Malý stín, aby ladil ke zbytku herního designu */
+    box-shadow: 0 2px 0px #000; 
 }

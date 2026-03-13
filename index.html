@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=13">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -50,6 +50,28 @@
                 <img id="layer-obojek" src="" class="hidden">
                 <img id="layer-cepice" src="" class="hidden">
             </div>
+            
+            <div class="study-controls">
+                <div class="study-mode-selector">
+                    <label for="study-mode">Metoda:</label>
+                    <select id="study-mode">
+                        <option value="classic">Klasické stopky</option>
+                        <option value="pomodoro">Pomodoro (fáze)</option>
+                    </select>
+                </div>
+
+                <div class="study-settings hidden" id="pomodoro-settings">
+                    <div class="setting-group">
+                        <label>Učení (min)</label>
+                        <input type="number" id="learn-time-input" value="25" min="1" max="120">
+                    </div>
+                    <div class="setting-group">
+                        <label>Pauza (min)</label>
+                        <input type="number" id="break-time-input" value="5" min="1" max="60">
+                    </div>
+                </div>
+            </div>
+
             <button id="start-study-btn" class="action-button main-action">Začni se učit</button>
         </main>
 
@@ -57,15 +79,30 @@
             <p>Hráč: <span id="player-name-display">Neznámý</span></p>
             <p>Celkově už se učíš:</p>
             <p id="total-time-display">0 hodin 0 minut a 0 sekund</p>
-            <p class="version">v0.0.3 (Web Edition)</p>
+            <div class="streak-selector-container">
+                <label for="streak-selector">Streak: </label>
+                <select id="streak-selector">
+                    <option value="red">🔥 Červený (3 m)</option>
+                    <option value="gold">⭐ Zlatý (1 h)</option>
+                    <option value="diamond">💎 Diamant (2 h)</option>
+                </select>
+                <span id="current-streak-display">🔥 0</span>
+            </div>
+            <p class="version">v0.0.4 (Pomodoro Update)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
 
         <div id="study-modal" class="modal hidden">
             <div class="modal-content study-content">
-                <h2 id="current-study-timer">00:00:00</h2>
-                <button id="stop-study-btn" class="action-button stop-button">Přestat se učit</button>
+                <h3 id="current-phase-text" class="phase-title">📚 Čas se učit!</h3>
+                <h2 id="phase-timer">00:00:00</h2>
+                <p id="total-session-time" class="session-total">Učíš se už: 00:00:00</p>
+                
+                <div class="study-buttons">
+                    <button id="pause-study-btn" class="action-button pause-button">⏸ Pauza</button>
+                    <button id="stop-study-btn" class="action-button stop-button">⏹ Ukončit</button>
+                </div>
             </div>
         </div>
 
@@ -119,6 +156,6 @@
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=2"></script>
+    <script src="script.js?v=13"></script>
 </body>
 </html>
