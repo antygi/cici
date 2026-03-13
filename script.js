@@ -3,7 +3,6 @@ const firebaseConfig = {
     apiKey: "AIzaSyDO8ufRx3EwctJ6RjngvMzMlDpLfUjsuTg",
     authDomain: "study-with-cici-43671.firebaseapp.com",
     projectId: "study-with-cici-43671",
-    // TADY JE TA OPRAVA: Přidáme přesnou adresu tvé databáze
     databaseURL: "https://study-with-cici-43671-default-rtdb.europe-west1.firebasedatabase.app", 
     storageBucket: "study-with-cici-43671.firebasestorage.app",
     messagingSenderId: "298107726636",
@@ -41,8 +40,8 @@ const ITEMS = [
 ];
 
 // --- STAV APLIKACE (STATE) ---
-let currentUser = null; // Kdo je zrovna přihlášený
-let allUsers = {};      // Naše lokální "databáze" všech hráčů
+let currentUser = null; 
+let allUsers = {};      
 
 // Tohle je šablona pro nového hráče
 const DEFAULT_STATE = {
@@ -58,7 +57,6 @@ const DEFAULT_STATE = {
     }
 };
 
-// Aktuální stav (bude se přepisovat při přihlášení)
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE)); 
 
 let studyInterval = null;
@@ -75,21 +73,14 @@ function init() {
     if (rememberedUser && rememberedPass) {
         document.getElementById('username-input').value = rememberedUser;
         document.getElementById('password-input').value = rememberedPass;
-        loginUser(); // Rovno spustíme přihlášení
+        loginUser(); // Rovnou spustíme přihlášení
     }
 }
 
 
-// --- UKLÁDÁNÍ A NAČÍTÁNÍ (localStorage) ---
-// --- DATABÁZE A PŘIHLAŠOVÁNÍ ---
-
-
 // --- DATABÁZE A PŘIHLAŠOVÁNÍ (FIREBASE CLOUD) ---
-
 function saveData() {
     if (!currentUser) return; 
-    
-    // Uloží aktuální state rovnou do cloudu pod jméno uživatele
     db.ref('users/' + currentUser).set(state);
 }
 
@@ -125,16 +116,15 @@ function loginUser() {
                     alert("Špatné heslo pro tohoto uživatele!");
                     loginBtn.innerText = "Vstoupit";
                     loginBtn.disabled = false;
-                    return; // Zastavíme přihlášení
+                    return; 
                 }
             } else {
                 // NOVÝ HRÁČ - Registrace
                 state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-                state.password = password; // Uložíme heslo do jeho nového profilu
+                state.password = password; 
                 saveData();
             }
 
-            // Pokud vše sedí, pustíme ho dál
             document.getElementById('login-modal').classList.add('hidden');
             loginBtn.innerText = "Vstoupit";
             loginBtn.disabled = false;
@@ -150,9 +140,7 @@ function loginUser() {
 
 // --- VYKRESLOVÁNÍ (UI) ---
 function updateHUD() {
-    // Vypíše jméno aktuálního hráče
     document.getElementById('player-name-display').innerText = currentUser;
-
     document.getElementById('coin-count').innerText = state.coins;
     
     const hours = Math.floor(state.total_cas / 3600);
@@ -166,7 +154,9 @@ function updateCharacter() {
     
     types.forEach(typ => {
         const layer = document.getElementById(`layer-${typ}`);
-        const equippedName = state.equipped_items[typ];
+        // Bezpečné načtení z equipped_items (ošetření pro staré účty)
+        const equippedItems = state.equipped_items || {};
+        const equippedName = equippedItems[typ];
         
         if (equippedName) {
             const item = ITEMS.find(i => i.nazev === equippedName);
@@ -181,18 +171,15 @@ function updateCharacter() {
 }
 
 // --- LOGIKA ŽEBŘÍČKU ---
-
 function showLeaderboard() {
     const list = document.getElementById('leaderboard-list');
     list.innerHTML = '<p style="text-align:center">Načítám legendy...</p>';
     document.getElementById('leaderboard-modal').classList.remove('hidden');
 
-    // Stáhneme celou větev "users"
     db.ref('users').once('value').then((snapshot) => {
         const data = snapshot.val();
         if (!data) return;
 
-        // Převedeme objekt na pole, abychom ho mohli seřadit
         let usersArray = [];
         for (let name in data) {
             usersArray.push({
@@ -201,10 +188,8 @@ function showLeaderboard() {
             });
         }
 
-        // Seřadíme od největšího času po nejmenší
         usersArray.sort((a, b) => b.total_cas - a.total_cas);
 
-        // Vykreslíme TOP 10
         list.innerHTML = '';
         usersArray.slice(0, 10).forEach((user, index) => {
             const item = document.createElement('div');
@@ -218,20 +203,21 @@ function showLeaderboard() {
         });
     });
 }
+
 // --- LOGIKA OBCHODU ---
 function renderShop(category) {
     const grid = document.getElementById('shop-items-grid');
-    grid.innerHTML = ''; // Vyčištění
+    grid.innerHTML = ''; 
 
     const filteredItems = ITEMS.filter(item => item.typ === category);
-
-    // Najdeme aktuálně vybavený skin pro podklad (bude se hodit u triček, čepic atd.)
-    const currentSkinItem = ITEMS.find(i => i.nazev === state.equipped_items.skin);
+    
+    const equippedItems = state.equipped_items || {};
+    const currentSkinItem = ITEMS.find(i => i.nazev === equippedItems.skin);
     const skinImageSrc = currentSkinItem ? currentSkinItem.image : 'assets/skin_default.png';
 
     filteredItems.forEach(item => {
         const isOwned = state.owned_items.includes(item.nazev);
-        const isEquipped = state.equipped_items[item.typ] === item.nazev;
+        const isEquipped = equippedItems[item.typ] === item.nazev;
 
         const div = document.createElement('div');
         div.className = `shop-item ${isEquipped ? 'equipped' : ''} ${isOwned && !isEquipped ? 'owned' : ''}`;
@@ -240,13 +226,10 @@ function renderShop(category) {
         if (isEquipped) statusText = 'Nasazeno';
         else if (isOwned) statusText = 'Vlastněno';
 
-        // Tady se rozhodneme, jestli pod item vykreslíme i skin
         let imageHtml = '';
         if (category === 'skin') {
-            // Pokud jsme ve skinech, ukážeme jen ten daný skin
             imageHtml = `<img src="${item.image}" class="item-main-img" alt="${item.nazev}">`;
         } else {
-            // Jinak vykreslíme základní skin jako podklad a přes něj teprve ten předmět
             imageHtml = `
                 <img src="${skinImageSrc}" class="item-base-skin" alt="Skin podklad">
                 <img src="${item.image}" class="item-main-img" alt="${item.nazev}">
@@ -267,11 +250,12 @@ function renderShop(category) {
 }
 
 function handleItemClick(item) {
+    if (!state.equipped_items) state.equipped_items = {};
+    
     const isOwned = state.owned_items.includes(item.nazev);
     const isEquipped = state.equipped_items[item.typ] === item.nazev;
 
     if (!isOwned) {
-        // Nákup
         if (state.coins >= item.cena) {
             state.coins -= item.cena;
             state.owned_items.push(item.nazev);
@@ -279,19 +263,16 @@ function handleItemClick(item) {
             updateHUD();
             renderShop(currentShopCategory);
         } else {
-            alert('Nedostatek coinů!'); // Můžeš nahradit vlastním modálem
+            alert('Nedostatek coinů!'); 
         }
     } else {
-        // Nasazování / Sundávání
         if (isEquipped) {
-            // Sundat (pokud to není skin, skin musí být vždy)
             if (item.typ !== 'skin') {
                 state.equipped_items[item.typ] = null;
             } else {
                 state.equipped_items.skin = 'Cici default';
             }
         } else {
-            // Nasadit
             state.equipped_items[item.typ] = item.nazev;
         }
         
@@ -321,7 +302,6 @@ function startStudy() {
 }
 
 function stopStudy() {
-    // 1 coin za 180 sekund (3 minuty) jako v Pythonu
     const earnedCoins = Math.floor(studySeconds / 180); 
     
     confirmAction('Opravdu se chceš přestat učit?', (agreed) => {
@@ -352,13 +332,107 @@ function confirmAction(text, callback) {
     confirmCallback = callback;
 }
 
+// --- PŘÁTELÉ ---
+function addFriend() {
+    const friendName = document.getElementById('friend-input').value.trim();
+    if (!friendName || friendName === currentUser) return;
+
+    db.ref('users/' + friendName).once('value').then((snapshot) => {
+        if (snapshot.exists()) {
+            if (!state.friends) state.friends = {};
+            state.friends[friendName] = true;
+            
+            saveData();
+            document.getElementById('friend-input').value = '';
+            renderFriends();
+        } else {
+            alert("Tenhle uživatel neexistuje! Pozvi ho, ať začne studovat.");
+        }
+    });
+}
+
+function renderFriends() {
+    const list = document.getElementById('friends-list');
+    list.innerHTML = '<p style="text-align:center;">Načítám parťáky...</p>'; 
+
+    if (!state.friends || Object.keys(state.friends).length === 0) {
+        list.innerHTML = '<p style="text-align:center; margin-top: 20px;">Zatím nikoho nesleduješ.</p>';
+        return;
+    }
+
+    const friendNames = Object.keys(state.friends);
+    
+    const fetchPromises = friendNames.map(name => {
+        return db.ref('users/' + name).once('value').then(snapshot => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                data.name = name; 
+                return data;
+            }
+            return null;
+        });
+    });
+
+    Promise.all(fetchPromises).then(friendsData => {
+        let validFriends = friendsData.filter(f => f !== null);
+        validFriends.sort((a, b) => (b.total_cas || 0) - (a.total_cas || 0));
+
+        list.innerHTML = '';
+        validFriends.forEach(data => {
+            const friendName = data.name;
+            const equipped = data.equipped_items || {}; // Změněno na equipped_items
+
+            // TADY JE TA MAGIE: Hledáme cestu k obrázku v ITEMS podle názvu z databáze
+            const getImageFromName = (itemName, isSkin = false) => {
+                if (!itemName) return isSkin ? 'assets/skin_default.png' : '';
+                const foundItem = ITEMS.find(i => i.nazev === itemName);
+                return foundItem ? foundItem.image : (isSkin ? 'assets/skin_default.png' : '');
+            };
+
+            const skinSrc = getImageFromName(equipped.skin, true);
+            const trikoSrc = getImageFromName(equipped.triko);
+            const maskaSrc = getImageFromName(equipped.maska);
+            const obojekSrc = getImageFromName(equipped.obojek);
+            const cepiceSrc = getImageFromName(equipped.cepice);
+
+            const item = document.createElement('div');
+            item.className = 'friend-card';
+            
+            item.innerHTML = `
+                <div class="mini-cici">
+                    <img src="${skinSrc}" alt="Skin" style="z-index: 1;">
+                    ${trikoSrc ? `<img src="${trikoSrc}" style="z-index: 2;">` : ''}
+                    ${maskaSrc ? `<img src="${maskaSrc}" style="z-index: 3;">` : ''}
+                    ${obojekSrc ? `<img src="${obojekSrc}" style="z-index: 4;">` : ''}
+                    ${cepiceSrc ? `<img src="${cepiceSrc}" style="z-index: 5;">` : ''}
+                </div>
+                
+                <div class="friend-info">
+                    <span class="friend-name">${friendName}</span>
+                    <span class="friend-time">⏱ ${formatTime(data.total_cas || 0)}</span>
+                </div>
+                
+                <button class="remove-friend-btn" onclick="removeFriend('${friendName}')" title="Odebrat">❌</button>
+            `;
+            
+            list.appendChild(item);
+        });
+    });
+}
+
+function removeFriend(name) {
+    if (state.friends && state.friends[name]) {
+        delete state.friends[name];
+        saveData();
+        renderFriends();
+    }
+}
+
 // --- EVENT LISTENERY ---
 function setupEventListeners() {
 
-    // Přihlášení - kliknutí na tlačítko
     document.getElementById('login-btn').addEventListener('click', loginUser);
     
-    // Přihlášení - zmáčknutí Enteru (v obou políčkách)
     const loginFields = ['username-input', 'password-input'];
     loginFields.forEach(id => {
         const input = document.getElementById(id);
@@ -371,27 +445,17 @@ function setupEventListeners() {
         }
     });
 
-    // Odhlášení
     document.getElementById('logout-btn').addEventListener('click', () => {
         localStorage.removeItem('studywithcici_remembered_user');
         localStorage.removeItem('studywithcici_remembered_pass');
         
-        saveData(); // Pro jistotu před odhlášením vše uložíme
-        location.reload(); // F5 v kódu: Nejčistší způsob, jak apku zresetovat na přihlašovací obrazovku
-    });
-    
-    // Aby to fungovalo i na zmáčknutí Enteru v textovém poli
-    document.getElementById('username-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            loginUser();
-        }
+        saveData(); 
+        location.reload(); 
     });
 
-    // Start studia
     document.getElementById('start-study-btn').addEventListener('click', startStudy);
     document.getElementById('stop-study-btn').addEventListener('click', stopStudy);
 
-    // Obchod
     document.getElementById('open-shop-btn').addEventListener('click', () => {
         renderShop(currentShopCategory);
         document.getElementById('shop-modal').classList.remove('hidden');
@@ -401,12 +465,9 @@ function setupEventListeners() {
         document.getElementById('shop-modal').classList.add('hidden');
     });
 
-    // Záložky v obchodě
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            // Odeber active třídu všem
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            // Přidej kliknutému
             e.target.classList.add('active');
             
             currentShopCategory = e.target.getAttribute('data-category');
@@ -414,7 +475,6 @@ function setupEventListeners() {
         });
     });
 
-    // Potvrzovací dialog (Ano / Ne)
     document.getElementById('confirm-yes').addEventListener('click', () => {
         document.getElementById('confirm-modal').classList.add('hidden');
         if (confirmCallback) confirmCallback(true);
@@ -424,10 +484,22 @@ function setupEventListeners() {
         document.getElementById('confirm-modal').classList.add('hidden');
         if (confirmCallback) confirmCallback(false);
     });
+    
     document.getElementById('open-leaderboard-btn').addEventListener('click', showLeaderboard);
     document.getElementById('close-leaderboard-btn').addEventListener('click', () => {
         document.getElementById('leaderboard-modal').classList.add('hidden');
     });
+
+    document.getElementById('open-friends-btn').addEventListener('click', () => {
+        renderFriends();
+        document.getElementById('friends-modal').classList.remove('hidden');
+    });
+
+    document.getElementById('close-friends-btn').addEventListener('click', () => {
+        document.getElementById('friends-modal').classList.add('hidden');
+    });
+
+    document.getElementById('add-friend-btn').addEventListener('click', addFriend);
 }
 
 // Spuštění po načtení stránky
@@ -446,4 +518,3 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
-

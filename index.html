@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
@@ -34,7 +35,11 @@
                 <button id="open-leaderboard-btn" class="image-button">
                     <img src="assets/trophy_button.png" alt="Žebříček">
                 </button>
+                <button id="open-friends-btn" class="image-button">
+                    <span class="emoji-icon">👥</span>
+                </button>
             </div>
+
         </header> 
 
         <main class="stage">
@@ -52,7 +57,7 @@
             <p>Hráč: <span id="player-name-display">Neznámý</span></p>
             <p>Celkově už se učíš:</p>
             <p id="total-time-display">0 hodin 0 minut a 0 sekund</p>
-            <p class="version">v0.0.2 (Web Edition)</p>
+            <p class="version">v0.0.3 (Web Edition)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -71,6 +76,21 @@
                 <div id="leaderboard-list"></div>
             </div>
         </div>
+        <div id="friends-modal" class="modal hidden">
+            <div class="modal-content shop-content">
+                <button id="close-friends-btn" class="close-btn">X</button>
+                <h2 class="shop-title">Moji parťáci</h2>
+        
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="friend-input" placeholder="Jméno kamaráda..." 
+                        style="flex-grow: 1; padding: 10px; border: 3px solid #000; border-radius: 8px;">
+                    <button id="add-friend-btn" class="action-button" style="padding: 10px 20px; font-size: 16px;">Přidat</button>
+            </div>
+
+        <div id="friends-list">
+            </div>
+    </div>
+</div>
 
         <div id="shop-modal" class="modal hidden">
             <div class="modal-content shop-content">
