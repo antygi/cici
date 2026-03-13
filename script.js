@@ -184,7 +184,9 @@ function showLeaderboard() {
         for (let name in data) {
             usersArray.push({
                 name: name,
-                total_cas: data[name].total_cas || 0
+                total_cas: data[name].total_cas || 0,
+                // Načteme i oblečení hráče
+                equipped: data[name].equipped_items || {} 
             });
         }
 
@@ -192,12 +194,42 @@ function showLeaderboard() {
 
         list.innerHTML = '';
         usersArray.slice(0, 10).forEach((user, index) => {
+            
+            // Stejná magie jako u přátel: Hledáme cestu k obrázku v ITEMS
+            const getImageFromName = (itemName, isSkin = false) => {
+                if (!itemName) return isSkin ? 'assets/skin_default.png' : '';
+                const foundItem = ITEMS.find(i => i.nazev === itemName);
+                return foundItem ? foundItem.image : (isSkin ? 'assets/skin_default.png' : '');
+            };
+
+            const skinSrc = getImageFromName(user.equipped.skin, true);
+            const trikoSrc = getImageFromName(user.equipped.triko);
+            const maskaSrc = getImageFromName(user.equipped.maska);
+            const obojekSrc = getImageFromName(user.equipped.obojek);
+            const cepiceSrc = getImageFromName(user.equipped.cepice);
+
             const item = document.createElement('div');
-            item.className = 'leaderboard-item';
+            // Přidáme speciální třídu pro top 3, abychom je mohli obarvit
+            let rankClass = '';
+            if (index === 0) rankClass = 'rank-gold';
+            else if (index === 1) rankClass = 'rank-silver';
+            else if (index === 2) rankClass = 'rank-bronze';
+            
+            item.className = `leaderboard-item ${rankClass}`;
+            
             item.innerHTML = `
-                <span class="rank">${index + 1}.</span>
-                <span class="p-name">${user.name}</span>
-                <span class="p-time">${formatTime(user.total_cas)}</span>
+                <div class="lb-rank">${index + 1}.</div>
+                <div class="mini-cici-lb">
+                    <img src="${skinSrc}" alt="Skin" style="z-index: 1;">
+                    ${trikoSrc ? `<img src="${trikoSrc}" style="z-index: 2;">` : ''}
+                    ${maskaSrc ? `<img src="${maskaSrc}" style="z-index: 3;">` : ''}
+                    ${obojekSrc ? `<img src="${obojekSrc}" style="z-index: 4;">` : ''}
+                    ${cepiceSrc ? `<img src="${cepiceSrc}" style="z-index: 5;">` : ''}
+                </div>
+                <div class="lb-info">
+                    <span class="p-name">${user.name}</span>
+                    <span class="p-time">⏱ ${formatTime(user.total_cas)}</span>
+                </div>
             `;
             list.appendChild(item);
         });

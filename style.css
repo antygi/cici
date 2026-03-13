@@ -475,23 +475,74 @@ body {
     background-color: #ff1a1a;
 }
 
+/* --- ŽEBŘÍČEK S AVATARY --- */
 .leaderboard-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 15px 25px;
-    border-bottom: 2px solid #eee;
-    font-size: 1.2rem;
+    background: #fff;
+    border: 3px solid #000;
+    border-radius: 12px;
+    padding: 10px 15px;
+    margin-bottom: 12px;
+    gap: 15px;
+    box-shadow: 0 4px 0px #000;
+    transition: transform 0.1s;
 }
 
-.leaderboard-item:nth-child(1) { background: #ffd70033; font-weight: bold; } /* Zlato */
-.leaderboard-item:nth-child(2) { background: #c0c0c033; } /* Stříbro */
-.leaderboard-item:nth-child(3) { background: #cd7f3233; } /* Bronz */
+.leaderboard-item:hover {
+    transform: translateX(5px);
+}
 
-.rank { width: 30px; font-weight: bold; }
-.p-name { flex-grow: 1; margin-left: 20px; }
-.p-time { font-family: monospace; }
+/* Obarvení prvních tří míst */
+.rank-gold { background-color: #ffd70033; border-color: #ffd700; }
+.rank-silver { background-color: #c0c0c033; border-color: #c0c0c0; }
+.rank-bronze { background-color: #cd7f3233; border-color: #cd7f32; }
 
+/* Velké číslo pozice vlevo */
+.lb-rank {
+    font-size: 24px;
+    font-weight: bold;
+    width: 35px;
+    text-align: center;
+    color: #333;
+}
+
+/* Menší verze Čiči speciálně pro řádky v žebříčku */
+.mini-cici-lb {
+    position: relative;
+    width: 55px; 
+    height: 70px;
+    flex-shrink: 0;
+}
+
+.mini-cici-lb img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Jméno a čas hráče v žebříčku */
+.lb-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.lb-info .p-name {
+    font-weight: bold;
+    font-size: 18px;
+    color: #000;
+}
+
+.lb-info .p-time {
+    font-family: monospace;
+    font-size: 14px;
+    color: #666;
+    margin-top: 3px;
+}
 /* Úprava emoji, aby vypadalo jako tlačítko */
 .emoji-icon {
     font-size: clamp(30px, 6vh, 60px);
@@ -544,6 +595,9 @@ body {
     gap: 15px;
     padding: 10px;
     margin-top: 20px;
+    max-height: 60vh;      /* Zastaví růst mřížky na 60 % výšky obrazovky */
+    overflow-y: auto;      /* Zapne vertikální scrolování (nahoru/dolů) */
+    scrollbar-width: thin; /* Udělá posuvník trošku hezčí a tenčí */
 }
 
 .friend-card {
