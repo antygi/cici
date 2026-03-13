@@ -133,14 +133,13 @@ function saveData() {
     db.ref('users/' + currentUser).set(state);
 }
 
+// --- DATABÁZE A PŘIHLAŠOVÁNÍ (FIREBASE CLOUD) ---
+
 function loginUser() {
     const usernameInput = document.getElementById('username-input');
     const passwordInput = document.getElementById('password-input');
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
-
-    localStorage.setItem('studywithcici_remembered_user', username);
-    localStorage.setItem('studywithcici_remembered_pass', password);
 
     if (username === "" || password === "") {
         alert("Musíš zadat jméno i heslo!");
@@ -151,40 +150,80 @@ function loginUser() {
     loginBtn.innerText = "Ověřuji...";
     loginBtn.disabled = true;
 
-    currentUser = username;
-
-    db.ref('users/' + currentUser).once('value')
+    db.ref('users/' + username).once('value')
         .then((snapshot) => {
             if (snapshot.exists()) {
                 const userData = snapshot.val();
                 
-                // KONTROLA HESLA
+                // Účet existuje, zkontrolujeme heslo
                 if (userData.password === password) {
+                    currentUser = username;
                     state = userData;
+                    finishLogin(username, password);
                 } else {
                     alert("Špatné heslo pro tohoto uživatele!");
-                    loginBtn.innerText = "Vstoupit";
-                    loginBtn.disabled = false;
-                    return; 
+                    resetLoginBtn();
                 }
             } else {
-                // NOVÝ HRÁČ - Registrace
-                state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-                state.password = password; 
-                saveData();
+                // ÚČET NEEXISTUJE (Už nevytváříme nový!)
+                alert("Účet s tímto jménem neexistuje. Zkontroluj překlepy nebo se zaregistruj.");
+                resetLoginBtn();
             }
-
-            document.getElementById('login-modal').classList.add('hidden');
-            loginBtn.innerText = "Vstoupit";
-            loginBtn.disabled = false;
-            
-            updateHUD();
-            updateCharacter();
         })
         .catch((error) => {
             alert("Chyba: " + error.message);
-            loginBtn.disabled = false;
+            resetLoginBtn();
         });
+}
+
+function registerUser() {
+    const usernameInput = document.getElementById('username-input');
+    const passwordInput = document.getElementById('password-input');
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (username === "" || password === "") {
+        alert("Pro registraci musíš vyplnit jméno i heslo!");
+        return;
+    }
+
+    db.ref('users/' + username).once('value')
+        .then((snapshot) => {
+            if (snapshot.exists()) {
+                // Jméno už někdo má
+                alert("Toto jméno už je zabrané, vyber si prosím jiné!");
+            } else {
+                // ZAKLÁDÁME NOVÝ ÚČET
+                currentUser = username;
+                state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+                state.password = password; 
+                saveData();
+                
+                alert("Účet úspěšně vytvořen! Vítej ve hře.");
+                finishLogin(username, password);
+            }
+        })
+        .catch((error) => {
+            alert("Chyba při registraci: " + error.message);
+        });
+}
+
+// Pomocná funkce, ať nepíšeme ten samý kód dvakrát
+function finishLogin(username, password) {
+    localStorage.setItem('studywithcici_remembered_user', username);
+    localStorage.setItem('studywithcici_remembered_pass', password);
+    
+    document.getElementById('login-modal').classList.add('hidden');
+    resetLoginBtn();
+    
+    updateHUD();
+    updateCharacter();
+}
+
+function resetLoginBtn() {
+    const loginBtn = document.getElementById('login-btn');
+    loginBtn.innerText = "Přihlásit se";
+    loginBtn.disabled = false;
 }
 
 // --- VYKRESLOVÁNÍ (UI) ---
@@ -783,7 +822,8 @@ function renderPosts(postsArray, container, defaultAuthor) {
 function setupEventListeners() {
 
     document.getElementById('login-btn').addEventListener('click', loginUser);
-    
+    document.getElementById('register-link').addEventListener('click', registerUser);
+
     const loginFields = ['username-input', 'password-input'];
     loginFields.forEach(id => {
         const input = document.getElementById(id);
@@ -885,15 +925,25 @@ function setupEventListeners() {
 window.onload = init;
 
 
-// --- REGISTRACE SERVICE WORKERA (PWA) ---
+// --- REGISTRACE SERVICE WORKERA A AUTOMATICKÝ UPDATE ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
+        // OPRAVENO: Žádný vygenerovaný čas, jen čistý odkaz!
         navigator.serviceWorker.register('./sw.js')
             .then(registration => {
-                console.log('PWA Service Worker úspěšně zaregistrován s rozsahem:', registration.scope);
+                console.log('PWA zaregistrováno.');
             })
             .catch(error => {
-                console.error('Registrace Service Workera selhala:', error);
+                console.error('Chyba registrace PWA:', error);
             });
+
+        // TOTO ZAŘÍDÍ AUTOMATICKÝ REFRESH PŘI UPDATU (teď už jen 1x!)
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                window.location.reload();
+                refreshing = true;
+            }
+        });
     });
 }

@@ -1024,3 +1024,31 @@ body {
     height: auto;
     filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.5)); /* Lehký stín, ať mince lépe vynikne na bílém pozadí */
 }
+
+/* --- LOGIN A REGISTRACE --- */
+.auth-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 80%;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.register-hint {
+    font-size: clamp(12px, 1.5vw, 16px);
+    color: #666;
+    margin: 0;
+}
+
+.clickable-link {
+    color: #4CAF50; /* Zelená barva pro registraci */
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s, text-decoration 0.2s;
+}
+
+.clickable-link:hover {
+    color: #45a049;
+    text-decoration: underline;
+}

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=22">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -14,12 +14,14 @@
         
         <div id="login-modal" class="modal">
             <div class="modal-content login-content">
-                <h2>Study With Čiči</h2>
-                <p>Zadej jméno a heslo (pro registraci i přihlášení):</p>
-                <p>Všechny hesla vidím, tak si tam nedávej co máš všude.</p>
-                <input type="text" id="username-input" placeholder="Tvoje jméno..." autocomplete="off">
-                <input type="password" id="password-input" placeholder="Tvoje heslo..." autocomplete="off">
-                <button id="login-btn" class="action-button">Vstoupit</button>
+                <h2>Studuj s Čiči!</h2>
+                <input type="text" id="username-input" placeholder="Tvoje jméno" autocomplete="off">
+                <input type="password" id="password-input" placeholder="Tvoje heslo">
+                
+                <div class="auth-buttons">
+                    <button id="login-btn" class="action-button" style="width: 100%;">Přihlásit se</button>
+                    <p class="register-hint">Nemáš účet? <span id="register-link" class="clickable-link">Zaregistruj se</span></p>
+                </div>
             </div>
         </div>
 
@@ -91,7 +93,7 @@
                 </select>
                 <span id="current-streak-display">🔥 0</span>
             </div>
-            <p class="version">v0.1.0 (První funkční verze)</p>
+            <p class="version">v0.1.1 (Register button)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -185,6 +187,6 @@
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=14"></script>
+    <script src="script.js?v=22"></script>
 </body>
 </html>

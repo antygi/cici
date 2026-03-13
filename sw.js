@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v3';
+const CACHE_NAME = 'studywithcici-pwa-v7';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -42,35 +42,40 @@ const ASSETS_TO_CACHE = [
     './assets/cepice_koruna.png',
 
     // Zvuky
-    '.assets/zvoneni.mp3'
+    './assets/zvoneni.mp3'
 ];
 
-// 1. Fáze INSTALACE: Service worker se nainstaluje a stáhne soubory do Cache
-self.addEventListener('install', event => {
-    console.log('[Service Worker] Instalace...');
+// INSTALACE - stažení nových souborů
+self.addEventListener('install', (event) => {
+    // TOTO JE KLÍČOVÉ: Donutí nového workera přeskočit frontu
+    self.skipWaiting(); 
+    
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('[Service Worker] Ukládám všechny soubory do mezipaměti');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
-    );
-});
-
-// 2. Fáze AKTIVACE: Promazání staré cache, pokud jsme změnili CACHE_NAME
-self.addEventListener('activate', event => {
-    console.log('[Service Worker] Aktivace...');
-    event.waitUntil(
-        caches.keys().then(keyList => {
-            return Promise.all(keyList.map(key => {
-                if (key !== CACHE_NAME) {
-                    console.log('[Service Worker] Mažu starou cache', key);
-                    return caches.delete(key);
-                }
-            }));
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.addAll(ASSETS_TO_CACHE);
         })
     );
 });
+
+// AKTIVACE - smazání starých souborů a převzetí kontroly
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    // Smaže všechny cache, které se nejmenují jako aktuální CACHE_NAME
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => {
+            // TOTO JE KLÍČOVÉ: Okamžitě převezme kontrolu nad všemi otevřenými okny s hrou
+            return self.clients.claim();
+        })
+    );
+});
+
 
 // 3. Fáze FETCH: Zachytávání požadavků při běhu aplikace
 self.addEventListener('fetch', event => {
