@@ -120,6 +120,7 @@ let phaseTimeLeft = 0;
 let learnDuration = 0;
 let breakDuration = 0;
 let pendingPostData = null;
+let wakeLock = null;
 
 const bellSound = new Audio('assets/zvoneni.mp3');
 
@@ -450,6 +451,33 @@ function formatTime(totalSeconds) {
     return `${h}:${m}:${s}`;
 }
 
+// --- ZÁMEK OBRAZOVKY (WAKE LOCK) ---
+async function zapniWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Obrazovka se teď nevypne!');
+            
+            // Když systém zámek zruší (např. slabá baterka), vynulujeme proměnnou
+            wakeLock.addEventListener('release', () => {
+                console.log('Zámek obrazovky byl uvolněn.');
+            });
+        }
+    } catch (err) {
+        console.error(`Chyba Wake Locku: ${err.name}, ${err.message}`);
+    }
+}
+
+function vypniWakeLock() {
+    if (wakeLock !== null) {
+        wakeLock.release()
+            .then(() => {
+                wakeLock = null;
+                console.log('Obrazovka se zase může vypínat.');
+            });
+    }
+}
+
 function startStudy() {
     // --- TRIK NA ODEMČENÍ ZVUKU PRO MOBILY A PROHLÍŽEČE ---
     // Prohlížeč potřebuje, aby první přehrání zvuku bylo vyvoláno přímo kliknutím
@@ -540,6 +568,7 @@ function startStudy() {
             document.getElementById('phase-timer').innerText = formatTime(studySeconds);
         }
     }, 1000);
+    zapniWakeLock();
 }
 
 function togglePause() {
@@ -561,6 +590,8 @@ function stopStudy() {
     confirmAction('Opravdu chceš tohle sezení ukončit?', (agreed) => {
         if (agreed) {
             clearInterval(studyInterval);
+            // Vypneme ochranu proti usnutí obrazovky
+            vypniWakeLock();
             document.getElementById('study-modal').classList.add('hidden');
             
             document.getElementById('study-mode').disabled = false;
@@ -928,6 +959,14 @@ function setupEventListeners() {
 
     document.getElementById('close-feed-btn').addEventListener('click', () => {
         document.getElementById('feed-modal').classList.add('hidden');
+    });
+    
+    // Obnova Wake Locku, pokud se hráč přepne do jiné záložky a vrátí se
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+            // Pokud měl zapnutý zámek a vrátil se na stránku, nahodíme ho znovu
+            zapniWakeLock();
+        }
     });
 }
 
