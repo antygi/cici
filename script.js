@@ -21,14 +21,24 @@ const ITEMS = [
     { nazev: 'Cici default', typ: 'skin', cena: 0, image: 'assets/skin_default.png' },
     { nazev: 'Čiči Hello Kitty', typ: 'skin', cena: 600, image: 'assets/skin_hello-kitty.png' },
     { nazev: 'Čiči Kráva', typ: 'skin', cena: 300, image: 'assets/skin_krava.png' },
-    
+    { nazev: 'Čiči Šedá', typ: 'skin', cena: 150, image: 'assets/skin_cici_seda.png' },
+    { nazev: 'Čiči Mourovatá', typ: 'skin', cena: 250, image: 'assets/skin_cici_mourovata.png' },
+    { nazev: 'Čiči NEGR', typ: 'skin', cena: 100, image: 'assets/skin_cici_negr.png' },
+
     // Trika
     { nazev: 'Doktor outfit', typ: 'triko', cena: 800, image: 'assets/triko_doktor.png' },
     { nazev: 'Triko růžové', typ: 'triko', cena: 60, image: 'assets/triko_ruzove.png' },
+    { nazev: 'Batman', typ: 'triko', cena: 500, image: 'assets/triko_batman.png' },
+    { nazev: 'Právník outfit', typ: 'triko', cena: 600, image: 'assets/triko_pravnik.png' },
+    { nazev: 'Status studenta', typ: 'triko', cena: 15, image: 'assets/triko_ujep.png' },
+
     
     // Masky
     { nazev: 'Gangster kukla', typ: 'maska', cena: 60, image: 'assets/maska_gangster.png' },
-    
+    { nazev: 'Batman', typ: 'maska', cena: 300, image: 'assets/maska_batman.png' },
+    { nazev: 'Retard', typ: 'maska', cena: 10, image: 'assets/maska_retard.png' },
+    { nazev: 'Rouška', typ: 'maska', cena: 50, image: 'assets/maska_rouska.png' },
+
     // Obojky
     { nazev: 'Mašlička růžová', typ: 'obojek', cena: 40, image: 'assets/obojek_masle.png' },
     { nazev: 'Perličky', typ: 'obojek', cena: 100, image: 'assets/obojek_perlicky.png' },
@@ -36,7 +46,8 @@ const ITEMS = [
     // Čepice
     { nazev: 'Hello kitty mašle', typ: 'cepice', cena: 200, image: 'assets/cepice_hello-kitty.png' },
     { nazev: 'Jindřich ze Skalice', typ: 'cepice', cena: 200, image: 'assets/cepice_jindra.png' },
-    { nazev: 'Královská koruna', typ: 'cepice', cena: 500, image: 'assets/cepice_koruna.png' }
+    { nazev: 'Královská koruna', typ: 'cepice', cena: 500, image: 'assets/cepice_koruna.png' },
+    { nazev: 'Čarodějnický klobouk', typ: 'cepice', cena: 100, image: 'assets/cepice_carodejnicky_klobouk.png'}
 ];
 
 // --- STAV APLIKACE (STATE) ---
