@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v17';
+const CACHE_NAME = 'studywithcici-pwa-v18';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -29,7 +29,7 @@ const ASSETS_TO_CACHE = [
     './assets/skin_krava.png',
     './assets/skin_cici_mourovata.png',
     './assets/skin_cici_seda.png',
-    './assets/skin_cici_negr.png',,
+    './assets/skin_cici_negr.png',
     './assets/skin_siamska.png',
 
     // Trika
