@@ -29,21 +29,21 @@ const ITEMS = [
     // Trika
     { nazev: 'Doktor outfit', typ: 'triko', cena: 800, image: 'assets/triko_doktor.png' },
     { nazev: 'Triko růžové', typ: 'triko', cena: 60, image: 'assets/triko_ruzove.png' },
-    { nazev: 'Batman', typ: 'triko', cena: 500, image: 'assets/triko_batman.png' },
+    { nazev: 'Batman oblek', typ: 'triko', cena: 500, image: 'assets/triko_batman.png' },
     { nazev: 'Právník outfit', typ: 'triko', cena: 600, image: 'assets/triko_pravnik.png' },
     { nazev: 'Status studenta', typ: 'triko', cena: 15, image: 'assets/triko_ujep.png' },
-    { nazev: 'Rytíř', typ: 'triko', cena: 300, image: 'assets/triko_rytir.png' },
+    { nazev: 'Brnění', typ: 'triko', cena: 300, image: 'assets/triko_rytir.png' },
     { nazev: 'Baletka', typ: 'triko', cena: 100, image: 'assets/triko_baletka.png' },
-    { nazev: 'Superman z wishe', typ: 'triko', cena: 15, image: 'assets/triko_wishsuperman.png' },
+    { nazev: 'Superman z wishe oblek', typ: 'triko', cena: 15, image: 'assets/triko_wishsuperman.png' },
 
     
     // Masky
     { nazev: 'Gangster kukla', typ: 'maska', cena: 60, image: 'assets/maska_gangster.png' },
-    { nazev: 'Batman', typ: 'maska', cena: 300, image: 'assets/maska_batman.png' },
+    { nazev: 'Batman maska', typ: 'maska', cena: 300, image: 'assets/maska_batman.png' },
     { nazev: 'Retard', typ: 'maska', cena: 10, image: 'assets/maska_retard.png' },
     { nazev: 'Rouška', typ: 'maska', cena: 50, image: 'assets/maska_rouska.png' },
     { nazev: 'Dudlík', typ: 'maska', cena: 20, image: 'assets/maska_dudlik.png' },
-    { nazev: 'Superman z wishe', typ: 'maska', cena: 5, image: 'assets/maska_wishsuperman.png' },
+    { nazev: 'Superman z wishe maska', typ: 'maska', cena: 5, image: 'assets/maska_wishsuperman.png' },
 
     // Obojky
     { nazev: 'Mašlička růžová', typ: 'obojek', cena: 40, image: 'assets/obojek_masle.png' },

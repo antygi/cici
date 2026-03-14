@@ -534,15 +534,6 @@ body {
     color: #666;
     margin-top: 3px;
 }
-/* Úprava emoji, aby vypadalo jako tlačítko */
-.emoji-icon {
-    font-size: clamp(30px, 6vh, 60px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.8));
-}
 
 #leaderboard-modal .modal-content {
     background: #fff;
