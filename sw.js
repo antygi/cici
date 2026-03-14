@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v12';
+const CACHE_NAME = 'studywithcici-pwa-v13';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -19,8 +19,9 @@ const ASSETS_TO_CACHE = [
     './assets/learn_okno.png',
     './assets/catcoin.png',
     './assets/obchod_button.png',
-    './assets/friends_button.png',
-    './assets/feed_button.png',
+    './assets/friends_button.png?v=2',
+    './assets/feed_button.png?v=2',
+    './assets/trophy_button.png?v=2',
 
     // Skiny
     './assets/skin_default.png',
@@ -40,7 +41,7 @@ const ASSETS_TO_CACHE = [
     // Masky
     './assets/maska_gangster.png',
     './assets/maska_batman.png',
-    './assets/maska_batman.png',
+    './assets/maska_retard.png',
     './assets/maska_rouska.png',
 
     // Obojky
