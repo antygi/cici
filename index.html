@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=29">
+    <link rel="stylesheet" href="style.css?v=30">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -81,19 +81,28 @@
         </main>
 
         <footer class="hud-bottom">
-            <p>Hráč: <span id="player-name-display">Neznámý</span></p>
-            <p>Celkově už se učíš:</p>
-            <p id="total-time-display">0 hodin 0 minut a 0 sekund</p>
+            <div class="player-info-row">
+                <p>Hráč: <span id="player-name-display">Neznámý</span></p>
+                <span id="all-streaks-display" class="all-streaks">0🔥 0⭐ 0💎</span>
+            </div>
+            <hr class="hud-separator">
+            
+            <p>Dneska ses učil:</p>
+            <p id="daily-time-display">0 hodin 0 minut a 0 sekund</p>
+            
             <div class="streak-selector-container">
-                <label for="streak-selector">Streak: </label>
+                <label for="streak-selector">Streak na profilu: </label>
                 <select id="streak-selector">
-                    <option value="red">🔥 Červený (3 m)</option>
-                    <option value="gold">⭐ Zlatý (1 h)</option>
-                    <option value="diamond">💎 Diamant (2 h)</option>
+                    <option value="red">🔥 (3 m)</option>
+                    <option value="gold">⭐ (1 h)</option>
+                    <option value="diamond">💎 (2 h)</option>
                 </select>
                 <span id="current-streak-display">🔥 0</span>
             </div>
-            <p class="version">v0.1.3 (Bug fix, časovač na pozadí)</p>
+            <p class="total-time-label">Celkově už se učíš:</p>
+            <p id="total-time-display" class="total-time-value">0 hodin 0 minut a 0 sekund</p>
+            
+            <p class="version">v0.1.4 (Úprava levého dolního rohu)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -187,6 +196,6 @@
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=29 "></script>
+    <script src="script.js?v=30 "></script>
 </body>
 </html>

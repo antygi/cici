@@ -253,29 +253,54 @@ function resetLoginBtn() {
 // --- VYKRESLOVÁNÍ (UI) ---
 function updateHUD() {
     checkDateReset(); // Pro jistotu zkontrolujeme datum hned po přihlášení
+    
+    // 1. Jméno hráče a odkaz na profil
     const nameDisplay = document.getElementById('player-name-display');
     nameDisplay.innerText = currentUser;
     nameDisplay.style.cursor = 'pointer';
     nameDisplay.style.textDecoration = 'underline';
     nameDisplay.onclick = () => showFeed('profile', currentUser);
+    
+    // 2. Mince (hlavní HUD i obchod)
     document.getElementById('coin-count').innerText = state.coins;
     if (document.getElementById('shop-coin-count')) {
         document.getElementById('shop-coin-count').innerText = state.coins;
     }
     
-    const hours = Math.floor(state.total_cas / 3600);
-    const minutes = Math.floor((state.total_cas % 3600) / 60);
-    const seconds = state.total_cas % 60;
-    document.getElementById('total-time-display').innerText = `${hours} hodin ${minutes} minut a ${seconds} sekund`;
+    // 3. Celkový čas
+    const hours = Math.floor((state.total_cas || 0) / 3600);
+    const minutes = Math.floor(((state.total_cas || 0) % 3600) / 60);
+    const seconds = (state.total_cas || 0) % 60;
+    if (document.getElementById('total-time-display')) {
+        document.getElementById('total-time-display').innerText = `${hours} hodin ${minutes} minut a ${seconds} sekund`;
+    }
+
+    // 4. Dnešní čas (NOVÉ)
+    const dHours = Math.floor((state.daily_time || 0) / 3600);
+    const dMinutes = Math.floor(((state.daily_time || 0) % 3600) / 60);
+    const dSeconds = (state.daily_time || 0) % 60;
+    if (document.getElementById('daily-time-display')) {
+        document.getElementById('daily-time-display').innerText = `${dHours} hodin ${dMinutes} minut a ${dSeconds} sekund`;
+    }
     
-    // Obnova výběru streaku
+    // 5. Streaky (výběr a zobrazení)
     const streakSel = document.getElementById('streak-selector');
     if (streakSel) streakSel.value = state.active_streak || 'red';
     
-    // Zobrazení ikonky a čísla
     const icons = { red: '🔥', gold: '⭐', diamond: '💎' };
     const currentCount = state.streaks[state.active_streak || 'red'];
-    document.getElementById('current-streak-display').innerText = `${icons[state.active_streak || 'red']} ${currentCount}`;
+    if (document.getElementById('current-streak-display')) {
+        document.getElementById('current-streak-display').innerText = `${icons[state.active_streak || 'red']} ${currentCount}`;
+    }
+
+    // --- NOVÉ: Vykreslení přehledu všech streaků v pravém horním rohu footeru ---
+    if (document.getElementById('all-streaks-display')) {
+        const r = state.streaks.red || 0;
+        const g = state.streaks.gold || 0;
+        const d = state.streaks.diamond || 0;
+        document.getElementById('all-streaks-display').innerText = `${r}🔥 ${g}⭐ ${d}💎`;
+    }
+    // -----------------------------------------------------------------------------
 }
 
 function updateCharacter() {

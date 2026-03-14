@@ -57,8 +57,8 @@ body {
 }
 
 .image-button {
-    width: 7vw;   /* Stejná šířka jako ikonka mince */
-    height: 7vw;  /* Stejná výška */
+    width: 4vw;   /* Stejná šířka jako ikonka mince */
+    height: 4vw;  /* Stejná výška */
     background: none;
     border: none;
     cursor: pointer;
@@ -87,11 +87,11 @@ body {
     left: 2vw;  
     background: rgba(255, 255, 255, 0.9);
     
-    /* Extrémnější hodnoty pro minimální velikost (první číslo v clamp) */
-    padding: clamp(4px, 1.5vh, 20px) clamp(5px, 1.5vw, 25px);
-    font-size: clamp(8px, 1.5vw, 20px); 
-    border: clamp(1px, 0.5vh, 4px) solid #000;
-    border-radius: clamp(4px, 1vw, 15px);
+    /* ZMENŠENO: Menší vnitřní okraje a celkově menší základní písmo */
+    padding: clamp(4px, 1vh, 15px) clamp(5px, 1vw, 18px);
+    font-size: clamp(8px, 1.2vw, 16px); 
+    border: clamp(1px, 0.4vh, 3px) solid #000;
+    border-radius: clamp(4px, 0.8vw, 12px);
     
     font-weight: bold;
     z-index: 10;
@@ -101,8 +101,12 @@ body {
 .version {
     font-size: clamp(10px, 1vw, 12px);
     font-weight: normal;
-    margin-top: 5px;
+    margin-top: 10px; /* Trošku jsem zvětšil mezeru, ať to není nalepené na čase */
     color: #555;
+    
+    /* --- NOVÉ: Přesun doprava --- */
+    text-align: right; 
+    width: 100%;
 }
 
 /* --- POSTAVA A STAGE --- */
@@ -820,9 +824,9 @@ body {
 
 /* --- STREAKY UI (Plně responzivní) --- */
 .streak-selector-container {
-    margin-top: clamp(3px, 1vh, 10px);
-    /* Velikost písma dýchá stejně jako zbytek footeru */
-    font-size: clamp(8px, 1.5vw, 20px); 
+    margin-top: clamp(3px, 1vh, 8px);
+    /* ZMENŠENO */
+    font-size: clamp(8px, 1.2vw, 16px); 
     display: flex;
     align-items: center;
     gap: clamp(2px, 0.5vw, 5px);
@@ -841,8 +845,8 @@ body {
 
 #current-streak-display {
     font-weight: bold;
-    /* Ikonka a číslo streaku můžou být o malinko větší */
-    font-size: clamp(10px, 1.8vw, 22px); 
+    /* ZMENŠENO */
+    font-size: clamp(10px, 1.4vw, 18px); 
     margin-left: clamp(3px, 0.5vw, 8px);
 }
 
@@ -1052,4 +1056,50 @@ body {
 .clickable-link:hover {
     color: #45a049;
     text-decoration: underline;
+}
+
+/* --- ZMENŠENÝ CELKOVÝ ČAS V LEVÉM DOLNÍM ROHU --- */
+.total-time-label {
+    /* ZMENŠENO: Ještě drobnější písmo pro doplňkové texty */
+    font-size: clamp(9px, 1vw, 12px); 
+    font-weight: normal; 
+    color: #555; 
+    margin-top: 10px; /* O trochu menší mezera */
+}
+
+.total-time-value {
+    /* ZMENŠENO */
+    font-size: clamp(10px, 1.1vw, 14px);
+    font-weight: bold;
+    color: #333;
+}
+
+/* --- ODDĚLOVACÍ ČÁRA VE FOOTERU --- */
+.hud-separator {
+    border: none;
+    border-top: 2px solid #000;
+    /* Responzivní mezery nad a pod čárou */
+    margin: clamp(5px, 1vh, 10px) 0; 
+    /* Zprůhledníme ji na 30 %, aby to byla jen jemná šedivá linka */
+    opacity: 0.3; 
+    width: 100%;
+}
+
+/* --- HORNÍ ŘÁDEK FOOTERU (Jméno a všechny streaky) --- */
+.player-info-row {
+    display: flex;
+    justify-content: space-between; /* Roztáhne jméno doleva a streaky doprava */
+    align-items: center;
+    width: 100%;
+}
+
+.all-streaks {
+    font-size: clamp(10px, 1.2vw, 14px);
+    font-weight: bold;
+    color: #333;
+    background: #f0f0f0;
+    padding: 3px 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    letter-spacing: 1px; /* Malinká mezera mezi znaky pro lepší čitelnost */
 }
