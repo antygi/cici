@@ -29,8 +29,7 @@ const ASSETS_TO_CACHE = [
     './assets/skin_krava.png',
     './assets/skin_cici_mourovata.png',
     './assets/skin_cici_seda.png',
-    './assets/skin_cici_negr.png',
-    './assets/skin_baletka.png',
+    './assets/skin_cici_negr.png',,
     './assets/skin_siamska.png',
 
     // Trika
@@ -41,6 +40,7 @@ const ASSETS_TO_CACHE = [
     './assets/triko_ujep.png',
     './assets/triko_rytir.png',
     './assets/triko_wishsuperman.png',
+    './assets/triko_baletka.png',
 
     // Masky
     './assets/maska_gangster.png',
