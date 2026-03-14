@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v15';
+const CACHE_NAME = 'studywithcici-pwa-v16';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -30,6 +30,8 @@ const ASSETS_TO_CACHE = [
     './assets/skin_cici_mourovata.png',
     './assets/skin_cici_seda.png',
     './assets/skin_cici_negr.png',
+    './assets/skin_baletka.png',
+    './assets/skin_siamska.png',
 
     // Trika
     './assets/triko_doktor.png',
@@ -37,22 +39,31 @@ const ASSETS_TO_CACHE = [
     './assets/triko_batman.png',
     './assets/triko_pravnik.png',
     './assets/triko_ujep.png',
+    './assets/triko_rytir.png',
+    './assets/triko_wishsuperman.png',
 
     // Masky
     './assets/maska_gangster.png',
     './assets/maska_batman.png',
     './assets/maska_retard.png',
     './assets/maska_rouska.png',
+    './assets/maska_dudlik.png',
+    './assets/maska_wishsuperman.png',
 
     // Obojky
     './assets/obojek_masle.png',
     './assets/obojek_perlicky.png',
+    './assets/obojek_znamka.png',
 
     // Čepice
     './assets/cepice_hello-kitty.png',
     './assets/cepice_jindra.png',
     './assets/cepice_koruna.png',
     './assets/cepice_carodejnicky_klobouk.png',
+    './assets/cepice_kuchar.png',
+    './assets/cepice_rytir.png',
+    './assets/cepice_kralici_usi.png',
+    './assets/cepice_kovboj.png',
 
 
     // Zvuky

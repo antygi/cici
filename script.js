@@ -24,6 +24,7 @@ const ITEMS = [
     { nazev: 'Čiči Šedá', typ: 'skin', cena: 150, image: 'assets/skin_cici_seda.png' },
     { nazev: 'Čiči Mourovatá', typ: 'skin', cena: 250, image: 'assets/skin_cici_mourovata.png' },
     { nazev: 'Čiči NEGR', typ: 'skin', cena: 100, image: 'assets/skin_cici_negr.png' },
+    { nazev: 'Siamská', typ: 'skin', cena: 300, image: 'assets/skin_siamska.png' },
 
     // Trika
     { nazev: 'Doktor outfit', typ: 'triko', cena: 800, image: 'assets/triko_doktor.png' },
@@ -31,6 +32,9 @@ const ITEMS = [
     { nazev: 'Batman', typ: 'triko', cena: 500, image: 'assets/triko_batman.png' },
     { nazev: 'Právník outfit', typ: 'triko', cena: 600, image: 'assets/triko_pravnik.png' },
     { nazev: 'Status studenta', typ: 'triko', cena: 15, image: 'assets/triko_ujep.png' },
+    { nazev: 'Rytíř', typ: 'triko', cena: 300, image: 'assets/triko_rytir.png' },
+    { nazev: 'Baletka', typ: 'triko', cena: 100, image: 'assets/triko_baletka.png' },
+    { nazev: 'Superman z wishe', typ: 'triko', cena: 15, image: 'assets/triko_wishsuperman.png' },
 
     
     // Masky
@@ -38,16 +42,23 @@ const ITEMS = [
     { nazev: 'Batman', typ: 'maska', cena: 300, image: 'assets/maska_batman.png' },
     { nazev: 'Retard', typ: 'maska', cena: 10, image: 'assets/maska_retard.png' },
     { nazev: 'Rouška', typ: 'maska', cena: 50, image: 'assets/maska_rouska.png' },
+    { nazev: 'Dudlík', typ: 'maska', cena: 20, image: 'assets/maska_dudlik.png' },
+    { nazev: 'Superman z wishe', typ: 'maska', cena: 5, image: 'assets/maska_wishsuperman.png' },
 
     // Obojky
     { nazev: 'Mašlička růžová', typ: 'obojek', cena: 40, image: 'assets/obojek_masle.png' },
     { nazev: 'Perličky', typ: 'obojek', cena: 100, image: 'assets/obojek_perlicky.png' },
-    
+    { nazev: 'Známka', typ: 'obojek', cena: 10, image: 'assets/obojek_znamka.png' },
+
     // Čepice
     { nazev: 'Hello kitty mašle', typ: 'cepice', cena: 200, image: 'assets/cepice_hello-kitty.png' },
     { nazev: 'Jindřich ze Skalice', typ: 'cepice', cena: 200, image: 'assets/cepice_jindra.png' },
     { nazev: 'Královská koruna', typ: 'cepice', cena: 500, image: 'assets/cepice_koruna.png' },
-    { nazev: 'Čarodějnický klobouk', typ: 'cepice', cena: 100, image: 'assets/cepice_carodejnicky_klobouk.png'}
+    { nazev: 'Čarodějnický klobouk', typ: 'cepice', cena: 100, image: 'assets/cepice_carodejnicky_klobouk.png'},
+    { nazev: 'Kuchař', typ: 'cepice', cena: 50, image: 'assets/cepice_kuchar.png'},
+    { nazev: 'Rytíř', typ: 'cepice', cena: 200, image: 'assets/cepice_rytir.png'},
+    { nazev: 'Kovboj', typ: 'cepice', cena: 120, image: 'assets/cepice_kovboj.png'},
+    { nazev: 'Králičí uši', typ: 'cepice', cena: 25, image: 'assets/cepice_kralici_usi.png'}
 ];
 
 // --- STAV APLIKACE (STATE) ---
