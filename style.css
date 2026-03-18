@@ -617,6 +617,20 @@ body {
     font-weight: 900;
 }
 
+#admin-notification-area {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    background: #fff;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+#admin-notification-area textarea {
+    max-height: 30vh;
+}
+
 /* Tlačítko odhlásit se - vpravo dole */
 #logout-btn {
     position: absolute;

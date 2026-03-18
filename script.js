@@ -64,6 +64,7 @@ const ITEMS = [
 // --- STAV APLIKACE (STATE) ---
 let currentUser = null; 
 let allUsers = {};      
+let preservedFeedScroll = 0;
 
 
 // Tohle je šablona pro nového hráče
@@ -363,19 +364,25 @@ function renderNotifications() {
         return;
     }
 
-    state.notifications.sort((a, b) => b.id - a.id).forEach(notification => {
-        const item = document.createElement('div');
-        item.style.border = '1px solid #ccc';
-        item.style.borderRadius = '8px';
-        item.style.padding = '8px';
-        item.style.background = notification.read ? '#f2f2f2' : '#fff7e6';
-        item.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-bottom:4px;">
-                <span style="font-weight: bold;">${notification.read ? 'Přečtené' : 'Nové'}</span>
-                <span style="color:#666; font-size:0.75rem;">${notification.date}</span>
-            </div>
-            <div style="font-size:0.95rem;">${notification.text}</div>
-        `;
+    state.notifications
+        .sort((a, b) => {
+            if (a.isGlobal && !b.isGlobal) return -1;
+            if (!a.isGlobal && b.isGlobal) return 1;
+            return b.id - a.id;
+        })
+        .forEach(notification => {
+            const item = document.createElement('div');
+            item.style.border = '1px solid #ccc';
+            item.style.borderRadius = '8px';
+            item.style.padding = '8px';
+            item.style.background = notification.read ? '#f2f2f2' : '#fff7e6';
+            item.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-bottom:4px;">
+                    <span style="font-weight: bold;">${notification.isGlobal ? 'ADMIN' : (notification.read ? 'Přečtené' : 'Nové')}</span>
+                    <span style="color:#666; font-size:0.75rem;">${notification.date}</span>
+                </div>
+                <div style="font-size:0.95rem; white-space: pre-wrap; word-break: break-word;">${notification.text}</div>
+            `;
 
         item.addEventListener('click', () => {
             notification.read = true;
@@ -975,12 +982,26 @@ function showNotifications() {
     // Zajistíme, že máme notifikace v místním stavu
     if (!state.notifications) state.notifications = [];
 
-    renderNotifications();
-
     const adminArea = document.getElementById('admin-notification-area');
-    if (adminArea) {
-        adminArea.style.display = (currentUser === 'admin' || currentUser === 'developer') ? 'flex' : 'none';
+    const notificationsList = document.getElementById('notifications-list');
+
+    if (adminArea && notificationsList) {
+        const isAdminUser = currentUser === 'admin' || currentUser === 'developer' || currentUser === 'Dan real';
+        adminArea.style.display = isAdminUser ? 'flex' : 'none';
+
+        // Ujistíme se, že admin panel je vždy nad seznamem notifikací
+        if (isAdminUser && adminArea.parentNode === notificationsList.parentNode) {
+            notificationsList.parentNode.insertBefore(adminArea, notificationsList);
+        }
     }
+
+    const globalNotifTextarea = document.getElementById('global-notif-text');
+    if (globalNotifTextarea) {
+        globalNotifTextarea.value = '';
+        globalNotifTextarea.style.height = 'auto';
+    }
+
+    renderNotifications();
 
     document.getElementById('notifications-modal').classList.remove('hidden');
 }
@@ -995,6 +1016,7 @@ function broadcastGlobalNotification(text) {
         text: text.trim(),
         date: new Date().toLocaleString('cs-CZ'),
         id: Date.now(),
+        isGlobal: true
     };
 
     db.ref('users').once('value').then(snapshot => {
@@ -1009,7 +1031,7 @@ function broadcastGlobalNotification(text) {
         });
 
         db.ref().update(updates).then(() => {
-            if (currentUser === 'admin' || currentUser === 'developer') {
+            if (currentUser === 'admin' || currentUser === 'Dan real') {
                 addLocalNotification('Odesláno všem: ' + payload.text);
             }
             alert('Oznámení odesláno všem uživatelům.');
@@ -1039,6 +1061,8 @@ function renderPosts(postsArray, container, defaultAuthor) {
         const isLiked = currentUser && post.likes && post.likes[currentUser];
         const commentsCount = post.comments ? post.comments.length : 0;
 
+        const likeIconSrc = isLiked ? 'assets/like_full.png' : 'assets/like_blank.png';
+
         const div = document.createElement('div');
         div.className = 'post-card';
         div.innerHTML = `
@@ -1054,7 +1078,7 @@ function renderPosts(postsArray, container, defaultAuthor) {
             </div>
             <div class="post-actions" style="display: flex; gap: 8px; margin-top: 10px;">
                 <button class="like-btn action-button" style="padding: 6px 8px; font-size:14px; display: flex; align-items: center; gap: 4px;">
-                    <span class="emoji">${isLiked ? '❤️' : '🤍'}</span>
+                    <img class="like-icon" src="${likeIconSrc}" alt="like" width="18" height="18">
                     <span class="count">${likesCount}</span>
                 </button>
                 <button class="comment-btn action-button" style="padding: 6px 8px; font-size:14px; display: flex; align-items: center; gap: 4px;">
@@ -1082,6 +1106,23 @@ function renderPosts(postsArray, container, defaultAuthor) {
 
         container.appendChild(div);
     });
+
+    if (preservedFeedScroll && container) {
+        container.scrollTop = preservedFeedScroll;
+        preservedFeedScroll = 0;
+    }
+}
+
+function saveFeedScroll() {
+    const feedList = document.getElementById('feed-list');
+    return feedList ? feedList.scrollTop : 0;
+}
+
+function restoreFeedScroll(scrollPos) {
+    const feedList = document.getElementById('feed-list');
+    if (feedList) {
+        feedList.scrollTop = scrollPos;
+    }
 }
 
 function toggleLike(author, timestamp) {
@@ -1089,6 +1130,8 @@ function toggleLike(author, timestamp) {
         alert('Přihlas se, aby ses mohl/a lajkovat příspěvky.');
         return;
     }
+
+    preservedFeedScroll = saveFeedScroll();
 
     if (author === currentUser) {
         if (!state.posts || !state.posts[timestamp]) return;
@@ -1100,7 +1143,7 @@ function toggleLike(author, timestamp) {
         } else {
             post.likes[currentUser] = true;
             if (author !== currentUser) {
-                sendNotificationToUser(author, `${currentUser} ti dal/la lajka na příspěvek: "${post.title || 'tvůj příspěvek'}"`);
+                sendNotificationToUser(author, `${currentUser} ti dal/la lajk na příspěvek: "${post.title || 'tvůj příspěvek'}"`);
             }
         }
 
@@ -1122,7 +1165,7 @@ function toggleLike(author, timestamp) {
 
         likeRef.set(likes).then(() => {
             if (likes[currentUser]) {
-                sendNotificationToUser(author, `${currentUser} ti dal/la lajka na příspěvek.`);
+                sendNotificationToUser(author, `${currentUser} ti dal/la lajk na příspěvek.`);
             }
             showFeed(currentFeedContext.type, currentFeedContext.username);
         });
@@ -1278,10 +1321,20 @@ function setupEventListeners() {
     });
 
     document.getElementById('send-global-notif-btn').addEventListener('click', () => {
-        const text = document.getElementById('global-notif-text').value;
+        const textEl = document.getElementById('global-notif-text');
+        const text = textEl.value;
         broadcastGlobalNotification(text);
-        document.getElementById('global-notif-text').value = '';
+        textEl.value = '';
+        textEl.style.height = 'auto';
     });
+
+    const globalNotifTextarea = document.getElementById('global-notif-text');
+    if (globalNotifTextarea) {
+        globalNotifTextarea.addEventListener('input', () => {
+            globalNotifTextarea.style.height = 'auto';
+            globalNotifTextarea.style.height = `${globalNotifTextarea.scrollHeight}px`;
+        });
+    }
     
     // Obnova Wake Locku, pokud se hráč přepne do jiné záložky a vrátí se
     document.addEventListener('visibilitychange', async () => {
