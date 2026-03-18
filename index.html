@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=33">
+    <link rel="stylesheet" href="style.css?v=34">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -42,6 +42,10 @@
                 </button>
                 <button id="open-feed-btn" class="image-button">
                     <img src="assets/feed_button.png?v=2" alt="Obchod">
+                </button>
+                <button id="open-notifications-btn" class="image-button notification-btn">
+                    <img src="assets/notification_button.png?v=3" alt="Oznámení">
+                    <span id="notification-badge" class="notification-badge hidden">0</span>
                 </button>
             </div>
 
@@ -102,7 +106,7 @@
             <p class="total-time-label">Celkově už se učíš:</p>
             <p id="total-time-display" class="total-time-value">0 hodin 0 minut a 0 sekund</p>
             
-            <p class="version">v0.1.4 (Úprava levého dolního rohu)</p>
+            <p class="version">v0.1.5 (Komentáře, lajky, oznámení)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -184,6 +188,18 @@
             </div>
         </div>
 
+        <div id="notifications-modal" class="modal hidden">
+            <div class="modal-content shop-content" style="max-width: 600px;">
+                <button id="close-notifications-btn" class="close-btn">X</button>
+                <h2 class="shop-title">Oznámení</h2>
+                <div id="notifications-list" style="margin-top: 10px; max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
+                <div id="admin-notification-area" style="margin-top: 15px; display:none; gap: 5px;">
+                    <input type="text" id="global-notif-text" placeholder="Zpráva pro všechny" style="flex:1; padding:8px; border:2px solid #000; border-radius:8px;">
+                    <button id="send-global-notif-btn" class="action-button" style="padding:8px 14px;">Poslat všem</button>
+                </div>
+            </div>
+        </div>
+
         <div id="confirm-modal" class="modal hidden">
             <div class="modal-content confirm-content">
                 <p id="confirm-text">Opravdu to chceš udělat?</p>
@@ -196,6 +212,6 @@
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=33"></script>
+    <script src="script.js?v=34"></script>
 </body>
 </html>

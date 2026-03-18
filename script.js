@@ -131,6 +131,7 @@ let phaseTimeLeft = 0;
 let learnDuration = 0;
 let breakDuration = 0;
 let pendingPostData = null;
+let currentFeedContext = { type: null, username: null };
 let wakeLock = null;
 let lastTickTime = 0; // Pamatuje si přesný reálný čas posledního tiku
 
@@ -240,6 +241,8 @@ function finishLogin(username, password) {
     document.getElementById('login-modal').classList.add('hidden');
     resetLoginBtn();
     
+    if (!state.notifications) state.notifications = [];
+
     updateHUD();
     updateCharacter();
 }
@@ -300,8 +303,98 @@ function updateHUD() {
         const d = state.streaks.diamond || 0;
         document.getElementById('all-streaks-display').innerText = `${r}🔥 ${g}⭐ ${d}💎`;
     }
+
+    updateNotificationBadge();
     // -----------------------------------------------------------------------------
 }
+
+function updateNotificationBadge() {
+    if (!state.notifications) state.notifications = [];
+    const unread = state.notifications.filter(n => !n.read).length;
+    const badge = document.getElementById('notification-badge');
+    if (!badge) return;
+    if (unread > 0) {
+        badge.classList.remove('hidden');
+        badge.innerText = unread > 99 ? '99+' : unread;
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+function addLocalNotification(message) {
+    if (!state.notifications) state.notifications = [];
+    state.notifications.unshift({
+        id: Date.now(),
+        text: message,
+        date: new Date().toLocaleString('cs-CZ'),
+        read: false,
+    });
+    saveData();
+    updateNotificationBadge();
+}
+
+function sendNotificationToUser(username, message) {
+    if (!username || !message) return;
+
+    db.ref('users/' + username + '/notifications').once('value').then(snapshot => {
+        const notifications = snapshot.val() || [];
+        notifications.unshift({
+            id: Date.now(),
+            text: message,
+            date: new Date().toLocaleString('cs-CZ'),
+            read: username === currentUser,
+        });
+
+        db.ref('users/' + username + '/notifications').set(notifications).then(() => {
+            if (username === currentUser) {
+                state.notifications = notifications;
+                updateNotificationBadge();
+                renderNotifications();
+            }
+        });
+    });
+}
+
+function renderNotifications() {
+    const list = document.getElementById('notifications-list');
+    list.innerHTML = '';
+    if (!state.notifications || state.notifications.length === 0) {
+        list.innerHTML = '<p style="text-align:center; opacity: 0.8;">Žádná oznámení.</p>';
+        return;
+    }
+
+    state.notifications.sort((a, b) => b.id - a.id).forEach(notification => {
+        const item = document.createElement('div');
+        item.style.border = '1px solid #ccc';
+        item.style.borderRadius = '8px';
+        item.style.padding = '8px';
+        item.style.background = notification.read ? '#f2f2f2' : '#fff7e6';
+        item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-bottom:4px;">
+                <span style="font-weight: bold;">${notification.read ? 'Přečtené' : 'Nové'}</span>
+                <span style="color:#666; font-size:0.75rem;">${notification.date}</span>
+            </div>
+            <div style="font-size:0.95rem;">${notification.text}</div>
+        `;
+
+        item.addEventListener('click', () => {
+            notification.read = true;
+            saveData();
+            renderNotifications();
+            updateNotificationBadge();
+        });
+
+        list.appendChild(item);
+    });
+}
+
+function markAllNotificationsRead() {
+    if (!state.notifications) return;
+    state.notifications = state.notifications.map(notif => ({ ...notif, read: true }));
+    saveData();
+    updateNotificationBadge();
+}
+
 
 function updateCharacter() {
     const types = ['skin', 'triko', 'maska', 'obojek', 'cepice'];
@@ -805,7 +898,9 @@ function savePost() {
         ...pendingPostData,
         title: title,
         description: desc,
-        dateString: new Date().toLocaleString('cs-CZ')
+        dateString: new Date().toLocaleString('cs-CZ'),
+        likes: {},
+        comments: []
     };
 
     if (!state.posts) state.posts = {};
@@ -830,6 +925,9 @@ function savePost() {
 }
 
 function showFeed(type, username = null) {
+    currentFeedContext.type = type;
+    currentFeedContext.username = username;
+
     const list = document.getElementById('feed-list');
     const title = document.getElementById('feed-title');
     list.innerHTML = '<p style="text-align:center">Načítám...</p>';
@@ -873,6 +971,53 @@ function showFeed(type, username = null) {
     }
 }
 
+function showNotifications() {
+    // Zajistíme, že máme notifikace v místním stavu
+    if (!state.notifications) state.notifications = [];
+
+    renderNotifications();
+
+    const adminArea = document.getElementById('admin-notification-area');
+    if (adminArea) {
+        adminArea.style.display = (currentUser === 'admin' || currentUser === 'developer') ? 'flex' : 'none';
+    }
+
+    document.getElementById('notifications-modal').classList.remove('hidden');
+}
+
+function broadcastGlobalNotification(text) {
+    if (!text || !text.trim()) {
+        alert('Zadej text oznámení.');
+        return;
+    }
+
+    const payload = {
+        text: text.trim(),
+        date: new Date().toLocaleString('cs-CZ'),
+        id: Date.now(),
+    };
+
+    db.ref('users').once('value').then(snapshot => {
+        const users = snapshot.val();
+        if (!users) return;
+        const updates = {};
+
+        Object.keys(users).forEach(username => {
+            const userNotifications = users[username].notifications || [];
+            userNotifications.unshift({ ...payload, read: false });
+            updates[`users/${username}/notifications`] = userNotifications;
+        });
+
+        db.ref().update(updates).then(() => {
+            if (currentUser === 'admin' || currentUser === 'developer') {
+                addLocalNotification('Odesláno všem: ' + payload.text);
+            }
+            alert('Oznámení odesláno všem uživatelům.');
+            renderNotifications();
+        });
+    });
+}
+
 function renderPosts(postsArray, container, defaultAuthor) {
     if (postsArray.length === 0) {
         container.innerHTML = '<p style="text-align:center; margin-top:20px;">Zatím žádné záznamy o učení.</p>';
@@ -889,7 +1034,11 @@ function renderPosts(postsArray, container, defaultAuthor) {
         const methodText = post.method === 'pomodoro' 
             ? `🍅 Pomodoro (${post.learnInput}m / ${post.breakInput}m)` 
             : `⏱️ Klasika`;
-        
+
+        const likesCount = post.likes ? Object.keys(post.likes).length : 0;
+        const isLiked = currentUser && post.likes && post.likes[currentUser];
+        const commentsCount = post.comments ? post.comments.length : 0;
+
         const div = document.createElement('div');
         div.className = 'post-card';
         div.innerHTML = `
@@ -903,8 +1052,118 @@ function renderPosts(postsArray, container, defaultAuthor) {
                 <span>${methodText}</span>
                 <span>Čas: ${formatTime(post.totalSeconds)}</span>
             </div>
+            <div class="post-actions" style="display: flex; gap: 8px; margin-top: 10px;">
+                <button class="like-btn action-button" style="padding: 6px 8px; font-size:14px; display: flex; align-items: center; gap: 4px;">
+                    <span class="emoji">${isLiked ? '❤️' : '🤍'}</span>
+                    <span class="count">${likesCount}</span>
+                </button>
+                <button class="comment-btn action-button" style="padding: 6px 8px; font-size:14px; display: flex; align-items: center; gap: 4px;">
+                    <span class="emoji">💬</span>
+                    <span class="count">${commentsCount}</span>
+                </button>
+            </div>
+            <div class="post-comments" style="margin-top: 8px; padding-left: 8px; border-left: 2px solid #ddd;">
+                ${post.comments && post.comments.length ? post.comments.map(c => `<div style="margin-bottom:4px;"><strong>${c.author}:</strong> ${c.text}</div>`).join('') : '<p style="opacity:0.7;">Žádné komentáře.</p>'}
+            </div>
         `;
+
+        const likeBtn = div.querySelector('.like-btn');
+        const commentBtn = div.querySelector('.comment-btn');
+
+        likeBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            toggleLike(author, post.timestamp);
+        });
+
+        commentBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            addComment(author, post.timestamp);
+        });
+
         container.appendChild(div);
+    });
+}
+
+function toggleLike(author, timestamp) {
+    if (!currentUser) {
+        alert('Přihlas se, aby ses mohl/a lajkovat příspěvky.');
+        return;
+    }
+
+    if (author === currentUser) {
+        if (!state.posts || !state.posts[timestamp]) return;
+        const post = state.posts[timestamp];
+        post.likes = post.likes || {};
+
+        if (post.likes[currentUser]) {
+            delete post.likes[currentUser];
+        } else {
+            post.likes[currentUser] = true;
+            if (author !== currentUser) {
+                sendNotificationToUser(author, `${currentUser} ti dal/la lajka na příspěvek: "${post.title || 'tvůj příspěvek'}"`);
+            }
+        }
+
+        saveData();
+        updateHUD();
+        showFeed(currentFeedContext.type, currentFeedContext.username);
+        return;
+    }
+
+    const likeRef = db.ref('users/' + author + '/posts/' + timestamp + '/likes');
+    likeRef.once('value').then(snapshot => {
+        const likes = snapshot.val() || {};
+
+        if (likes[currentUser]) {
+            delete likes[currentUser];
+        } else {
+            likes[currentUser] = true;
+        }
+
+        likeRef.set(likes).then(() => {
+            if (likes[currentUser]) {
+                sendNotificationToUser(author, `${currentUser} ti dal/la lajka na příspěvek.`);
+            }
+            showFeed(currentFeedContext.type, currentFeedContext.username);
+        });
+    });
+}
+
+function addComment(author, timestamp) {
+    if (!currentUser) {
+        alert('Přihlas se, aby ses mohl/a komentovat příspěvky.');
+        return;
+    }
+    const text = prompt('Napiš komentář:', '');
+    if (!text || !text.trim()) return;
+
+    const comment = {
+        author: currentUser,
+        text: text.trim(),
+        date: new Date().toLocaleString('cs-CZ')
+    };
+
+    if (author === currentUser) {
+        if (!state.posts || !state.posts[timestamp]) return;
+        const post = state.posts[timestamp];
+        post.comments = post.comments || [];
+        post.comments.push(comment);
+
+        saveData();
+        updateHUD();
+        showFeed(currentFeedContext.type, currentFeedContext.username);
+        return;
+    }
+
+    sendNotificationToUser(author, `${currentUser} ti napsal/a komentář na tvůj příspěvek: "${comment.text}"`);
+
+    const commentsRef = db.ref('users/' + author + '/posts/' + timestamp + '/comments');
+    commentsRef.once('value').then(snapshot => {
+        const comments = snapshot.val() || [];
+        comments.push(comment);
+        commentsRef.set(comments).then(() => {
+            showFeed(currentFeedContext.type, currentFeedContext.username);
+        });
     });
 }
 
@@ -1005,8 +1264,23 @@ function setupEventListeners() {
         showFeed('friends');
     });
 
+    document.getElementById('open-notifications-btn').addEventListener('click', () => {
+        showNotifications();
+    });
+
     document.getElementById('close-feed-btn').addEventListener('click', () => {
         document.getElementById('feed-modal').classList.add('hidden');
+    });
+
+    document.getElementById('close-notifications-btn').addEventListener('click', () => {
+        markAllNotificationsRead();
+        document.getElementById('notifications-modal').classList.add('hidden');
+    });
+
+    document.getElementById('send-global-notif-btn').addEventListener('click', () => {
+        const text = document.getElementById('global-notif-text').value;
+        broadcastGlobalNotification(text);
+        document.getElementById('global-notif-text').value = '';
     });
     
     // Obnova Wake Locku, pokud se hráč přepne do jiné záložky a vrátí se
