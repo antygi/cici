@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v22';
+const CACHE_NAME = 'studywithcici-pwa-v23';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -17,12 +17,12 @@ const ASSETS_TO_CACHE = [
     // UI a prostředí
     './assets/pozadi.png',
     './assets/learn_okno.png',
-    './assets/catcoin.png',
+    './assets/comment.png?v=23',
     './assets/obchod_button.png',
     './assets/friends_button.png?v=2',
     './assets/feed_button.png?v=2',
     './assets/trophy_button.png?v=2',
-    './assets/notification_button.png?v=20',
+    './assets/notification_button.png?v=23',
     './assets/like_full.png?v=21',
     './assets/like_blank.png?v=21',
 

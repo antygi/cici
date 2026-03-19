@@ -1117,7 +1117,7 @@ function renderPosts(postsArray, container, defaultAuthor) {
                     <span class="count">${likesCount}</span>
                 </button>
                 <button class="comment-btn action-button" style="padding: 6px 8px; font-size:14px; display: flex; align-items: center; gap: 4px;">
-                    <span class="emoji">💬</span>
+                    <img class="comment-icon" src="assets/comment.png" alt="comment" width="18" height="18">
                     <span class="count">${commentsCount}</span>
                 </button>
             </div>
