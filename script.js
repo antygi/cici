@@ -246,6 +246,12 @@ function finishLogin(username, password) {
 
     updateHUD();
     updateCharacter();
+    // NOVÉ: Kontrola, jestli se aplikace neukončila (nezabila) během učení
+    const savedSession = localStorage.getItem('studywithcici_activesession');
+    if (savedSession) {
+        const parsedSession = JSON.parse(savedSession);
+        startStudy(parsedSession); // Spustí učení rovnou ze zálohy
+    }
 }
 
 function resetLoginBtn() {
@@ -615,101 +621,126 @@ function vypniWakeLock() {
     }
 }
 
-function startStudy() {
-    // OPRAVA 1: Zastavíme jakýkoliv "zaseknutý" časovač z minula, aby neběžely dva přes sebe!
+function startStudy(resumeSession = null) {
     if (studyInterval) clearInterval(studyInterval);
 
-    // Trik na odemčení zvuku
-    if (typeof bellSound !== 'undefined') {
-        bellSound.volume = 0;
-        bellSound.play().then(() => {
-            bellSound.pause();
-            bellSound.currentTime = 0;
-            bellSound.volume = 1;
-        }).catch(err => console.log("Odemčení zvuku selhalo:", err));
+    let studyMode;
+
+    // --- A) ROZHODNUTÍ: JEDEME ZE ZÁLOHY, NEBO OD ZNOVA? ---
+    if (resumeSession) {
+        // OBNOVENÍ Z PAMĚTI
+        studyMode = resumeSession.studyMode;
+        studySeconds = resumeSession.studySeconds;
+        isPaused = resumeSession.isPaused;
+        lastTickTime = resumeSession.lastTickTime;
+        currentPhase = resumeSession.currentPhase;
+        phaseTimeLeft = resumeSession.phaseTimeLeft;
+        learnDuration = resumeSession.learnDuration;
+        breakDuration = resumeSession.breakDuration;
+        
+        document.getElementById('study-mode').value = studyMode;
+    } else {
+        // NOVÉ UČENÍ
+        studyMode = document.getElementById('study-mode').value;
+        studySeconds = 0;
+        isPaused = false;
+        lastTickTime = Date.now();
+        
+        if (studyMode === 'pomodoro') {
+            const lInput = parseInt(document.getElementById('learn-time-input').value) || 25;
+            const bInput = parseInt(document.getElementById('break-time-input').value) || 5;
+            learnDuration = lInput * 60;
+            breakDuration = bInput * 60;
+            currentPhase = 'learn';
+            phaseTimeLeft = learnDuration;
+        }
+        
+        // Trik na odemčení zvuku pro mobily (pouze při novém startu ručním klikem)
+        if (typeof bellSound !== 'undefined') {
+            bellSound.volume = 0;
+            bellSound.play().then(() => {
+                bellSound.pause();
+                bellSound.currentTime = 0;
+                bellSound.volume = 1;
+            }).catch(err => console.log("Odemčení zvuku selhalo:", err));
+        }
     }
 
-    // Zamknutí tlačítek
+    // --- B) ZAMKNUTÍ A PŘÍPRAVA UI ---
     document.getElementById('study-mode').disabled = true;
     document.getElementById('learn-time-input').disabled = true;
     document.getElementById('break-time-input').disabled = true;
 
-    const studyMode = document.getElementById('study-mode').value;
-    
-    studySeconds = 0;
-    isPaused = false;
-    lastTickTime = Date.now(); // Zaznamenáme si přesný reálný čas startu
-
     const pauseBtn = document.getElementById('pause-study-btn');
-    pauseBtn.innerText = "⏸ Pauza";
-    pauseBtn.style.backgroundColor = "#f0ad4e";
+    if (isPaused) {
+        pauseBtn.innerText = "▶ Pokračovat";
+        pauseBtn.style.backgroundColor = "#4CAF50";
+    } else {
+        pauseBtn.innerText = "⏸ Pauza";
+        pauseBtn.style.backgroundColor = "#f0ad4e";
+    }
 
     if (studyMode === 'pomodoro') {
-        const lInput = parseInt(document.getElementById('learn-time-input').value) || 25;
-        const bInput = parseInt(document.getElementById('break-time-input').value) || 5;
-
-        learnDuration = lInput * 60;
-        breakDuration = bInput * 60;
-        currentPhase = 'learn';
-        phaseTimeLeft = learnDuration;
-
-        document.getElementById('current-phase-text').innerText = "📚 Čas se učit!";
-        document.getElementById('phase-timer').innerText = formatTime(phaseTimeLeft);
-        
+        document.getElementById('current-phase-text').innerText = currentPhase === 'learn' ? "📚 Čas se učit!" : "☕ Přestávka!";
+        let displayTime = phaseTimeLeft > 0 ? phaseTimeLeft : 0;
+        document.getElementById('phase-timer').innerText = formatTime(displayTime);
         document.getElementById('total-session-time').classList.remove('hidden');
-        document.getElementById('total-session-time').innerText = `Učíš se už: 00:00:00`;
+        document.getElementById('total-session-time').innerText = `Učíš se už: ${formatTime(studySeconds)}`;
     } else {
         document.getElementById('current-phase-text').innerText = "⏱️ Klasické učení";
-        document.getElementById('phase-timer').innerText = "00:00:00";
+        document.getElementById('phase-timer').innerText = formatTime(studySeconds);
         document.getElementById('total-session-time').classList.add('hidden');
     }
 
     document.getElementById('study-modal').classList.remove('hidden');
 
-    // OPRAVA 2: Spuštění NEPRŮSTŘELNÉHO odpočtu
-    // Běží častěji (každého půl sekundy), ale sekundu přičte, až když opravdu uběhne na hodinách počítače.
+    // --- C) START NEPRŮSTŘELNÉHO INTERVALU S UKLÁDÁNÍM ---
     studyInterval = setInterval(() => {
         if (isPaused) {
-            lastTickTime = Date.now(); // Pokud je pauza, posouváme čas, ať po pauze nevyskočí nesmysl
+            lastTickTime = Date.now();
             return;
         }
 
         let now = Date.now();
-        // Spočítáme, kolik reálných celých sekund uběhlo od posledního přepočtu
         let deltaSeconds = Math.floor((now - lastTickTime) / 1000); 
 
         if (deltaSeconds >= 1) {
-            lastTickTime += deltaSeconds * 1000; // Posuneme referenční čas
-            studySeconds += deltaSeconds; // Přičteme skutečně uběhlý čas
+            lastTickTime += deltaSeconds * 1000; 
+            studySeconds += deltaSeconds; 
 
             if (studyMode === 'pomodoro') {
                 phaseTimeLeft -= deltaSeconds; 
                 
-                if (phaseTimeLeft <= 0) {
-                    if (typeof bellSound !== 'undefined') {
+                // WHILE MÍSTO IF: Kdyby byl mobil vypnutý moc dlouho a čas by přeskočil několik fází najednou
+                while (phaseTimeLeft <= 0) {
+                    if (typeof bellSound !== 'undefined' && deltaSeconds < 10) {
                         bellSound.currentTime = 0;
                         bellSound.play().catch(err => console.log("Zvuk nešel přehrát:", err));
                     }
 
                     if (currentPhase === 'learn') {
                         currentPhase = 'break';
-                        // Převedeme případný přebývající čas do další fáze (aby to matematicky sedělo, kdyby měl prohlížeč lag)
-                        phaseTimeLeft = breakDuration + phaseTimeLeft; 
+                        phaseTimeLeft += breakDuration; 
                         document.getElementById('current-phase-text').innerText = "☕ Přestávka!";
                     } else {
                         currentPhase = 'learn';
-                        phaseTimeLeft = learnDuration + phaseTimeLeft;
+                        phaseTimeLeft += learnDuration;
                         document.getElementById('current-phase-text').innerText = "📚 Čas se učit!";
                     }
                 }
                 
-                // Pojistka pro zobrazení (aby se na zlomek vteřiny neukázal záporný čas)
                 let displayTime = phaseTimeLeft > 0 ? phaseTimeLeft : 0;
                 document.getElementById('phase-timer').innerText = formatTime(displayTime);
                 document.getElementById('total-session-time').innerText = `Učíš se už: ${formatTime(studySeconds)}`;
             } else {
                 document.getElementById('phase-timer').innerText = formatTime(studySeconds);
             }
+
+            // TADY JE TA MAGIE: Ukládáme to tvrdě do telefonu každou vteřinu!
+            localStorage.setItem('studywithcici_activesession', JSON.stringify({
+                studyMode, studySeconds, currentPhase, phaseTimeLeft,
+                learnDuration, breakDuration, lastTickTime, isPaused
+            }));
         }
     }, 500); 
 
@@ -737,6 +768,10 @@ function stopStudy() {
             // Zastavíme časovač a usínání HNED TEĎ
             clearInterval(studyInterval);
             vypniWakeLock();
+            
+            // NOVÉ: Vymažeme záchrannou relaci z paměti mobilu
+            localStorage.removeItem('studywithcici_activesession');
+            
             
             // OPRAVA 3: Počítáme mince z fixního času přesně ve chvíli ukončení
             const earnedCoins = Math.floor(studySeconds / 180); 
@@ -1236,7 +1271,7 @@ function setupEventListeners() {
         location.reload(); 
     });
 
-    document.getElementById('start-study-btn').addEventListener('click', startStudy);
+    document.getElementById('start-study-btn').addEventListener('click', () => startStudy());
     document.getElementById('stop-study-btn').addEventListener('click', stopStudy);
     document.getElementById('pause-study-btn').addEventListener('click', togglePause);
 
