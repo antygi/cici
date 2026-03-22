@@ -25,6 +25,7 @@ const ITEMS = [
     { nazev: 'Čiči Mourovatá', typ: 'skin', cena: 250, image: 'assets/skin_cici_mourovata.png' },
     { nazev: 'Čiči NEGR', typ: 'skin', cena: 100, image: 'assets/skin_cici_negr.png' },
     { nazev: 'Siamská', typ: 'skin', cena: 300, image: 'assets/skin_siamska.png' },
+    { nazev: 'Yuumi', typ: 'skin', cena: 1000, image: 'assets/skin_yuumi.png' },
 
     // Trika
     { nazev: 'Doktor outfit', typ: 'triko', cena: 800, image: 'assets/triko_doktor.png' },
@@ -35,6 +36,8 @@ const ITEMS = [
     { nazev: 'Brnění', typ: 'triko', cena: 300, image: 'assets/triko_rytir.png' },
     { nazev: 'Baletka', typ: 'triko', cena: 100, image: 'assets/triko_baletka.png' },
     { nazev: 'Superman z wishe oblek', typ: 'triko', cena: 15, image: 'assets/triko_wishsuperman.png' },
+    { nazev: 'Jinx triko', typ: 'triko', cena: 50, image: 'assets/triko_jinx.png' },
+    { nazev: 'Spider triko', typ: 'triko', cena: 300, image: 'assets/triko_spider.png' },
 
     
     // Masky
@@ -44,6 +47,8 @@ const ITEMS = [
     { nazev: 'Rouška', typ: 'maska', cena: 50, image: 'assets/maska_rouska.png' },
     { nazev: 'Dudlík', typ: 'maska', cena: 20, image: 'assets/maska_dudlik.png' },
     { nazev: 'Superman z wishe maska', typ: 'maska', cena: 5, image: 'assets/maska_wishsuperman.png' },
+    { nazev: 'Spiderčiči maska', typ: 'maska', cena: 200, image: 'assets/maska_spider.png' },
+    { nazev: 'Jinx oči', typ: 'maska', cena: 20, image: 'assets/maska_jinx.png' },
 
     // Obojky
     { nazev: 'Mašlička růžová', typ: 'obojek', cena: 40, image: 'assets/obojek_masle.png' },
@@ -58,7 +63,8 @@ const ITEMS = [
     { nazev: 'Kuchař', typ: 'cepice', cena: 50, image: 'assets/cepice_kuchar.png'},
     { nazev: 'Rytíř', typ: 'cepice', cena: 200, image: 'assets/cepice_rytir.png'},
     { nazev: 'Kovboj', typ: 'cepice', cena: 120, image: 'assets/cepice_kovboj.png'},
-    { nazev: 'Králičí uši', typ: 'cepice', cena: 25, image: 'assets/cepice_kralici_usi.png'}
+    { nazev: 'Králičí uši', typ: 'cepice', cena: 25, image: 'assets/cepice_kralici_usi.png'},
+    { nazev: 'Jinx čepice', typ: 'cepice', cena: 150, image: 'assets/cepice_jinx.png'}
 ];
 
 // --- STAV APLIKACE (STATE) ---

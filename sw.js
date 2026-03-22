@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v23';
+const CACHE_NAME = 'studywithcici-pwa-v24';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -35,6 +35,7 @@ const ASSETS_TO_CACHE = [
     './assets/skin_cici_seda.png',
     './assets/skin_cici_negr.png',
     './assets/skin_siamska.png',
+    './assets/skin_yuumi.png?v=24',
 
     // Trika
     './assets/triko_doktor.png',
@@ -45,6 +46,8 @@ const ASSETS_TO_CACHE = [
     './assets/triko_rytir.png',
     './assets/triko_wishsuperman.png',
     './assets/triko_baletka.png',
+    './assets/triko_jinx.png?v=24',
+    './assets/triko_spider.png?v=24',
 
     // Masky
     './assets/maska_gangster.png',
@@ -53,6 +56,8 @@ const ASSETS_TO_CACHE = [
     './assets/maska_rouska.png',
     './assets/maska_dudlik.png',
     './assets/maska_wishsuperman.png',
+    './assets/maska_spider.png?v=24',
+    './assets/maska_jinx.png?v=24',
 
     // Obojky
     './assets/obojek_masle.png',
@@ -68,6 +73,8 @@ const ASSETS_TO_CACHE = [
     './assets/cepice_rytir.png',
     './assets/cepice_kralici_usi.png',
     './assets/cepice_kovboj.png',
+    './assets/cepice_jinx.png?v=24',
+
 
 
     // Zvuky
