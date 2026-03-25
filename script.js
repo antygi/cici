@@ -86,6 +86,9 @@ const DEFAULT_STATE = {
         obojek: null
     },
     daily_time: 0,
+    weekly_time: 0,
+    trophies: 0,
+    current_week: getCurrentWeekString(),
     last_date: new Date().toDateString(),
     streaks: { red: 0, gold: 0, diamond: 0 },
     awarded_today: { red: false, gold: false, diamond: false },
@@ -93,6 +96,16 @@ const DEFAULT_STATE = {
 };
 
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE)); 
+
+// --- POMOCNÁ FUNKCE PRO ZJIŠTĚNÍ AKTUÁLNÍHO TÝDNE ---
+function getCurrentWeekString() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    const weekNumber = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${d.getFullYear()}-W${weekNumber}`;
+}
 
 // --- FUNKCE PRO HLÍDÁNÍ PADÁNÍ STREAKŮ ---
 function checkDateReset() {
@@ -141,6 +154,7 @@ let pendingPostData = null;
 let currentFeedContext = { type: null, username: null };
 let wakeLock = null;
 let lastTickTime = 0; // Pamatuje si přesný reálný čas posledního tiku
+let currentLeaderboardType = 'weekly'; // Globální proměnná pro pamatování záložky
 
 const bellSound = new Audio('assets/zvoneni.mp3');
 
@@ -252,11 +266,15 @@ function finishLogin(username, password) {
 
     updateHUD();
     updateCharacter();
+    
+    // Spustíme tajného rozhodčího, jestli náhodou nezačal nový týden
+    processWeeklyLeaderboard();
+
     // NOVÉ: Kontrola, jestli se aplikace neukončila (nezabila) během učení
     const savedSession = localStorage.getItem('studywithcici_activesession');
     if (savedSession) {
         const parsedSession = JSON.parse(savedSession);
-        startStudy(parsedSession); // Spustí učení rovnou ze zálohy
+        startStudy(parsedSession); 
     }
 }
 
@@ -315,6 +333,14 @@ function updateHUD() {
         const g = state.streaks.gold || 0;
         const d = state.streaks.diamond || 0;
         document.getElementById('all-streaks-display').innerText = `${r}🔥 ${g}⭐ ${d}💎`;
+    }
+
+    // --- Vykreslení počtu trofejí ---
+    if (document.getElementById('trophy-display')) {
+        const t = state.trophies || 0;
+        document.getElementById('trophy-display').innerHTML = `
+            <img src="assets/trophy_button.png" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-bottom: 2px;"> ${t}
+        `;
     }
 
     updateNotificationBadge();
@@ -437,31 +463,73 @@ function updateCharacter() {
 }
 
 // --- LOGIKA ŽEBŘÍČKU ---
-function showLeaderboard() {
+
+
+function showLeaderboard(type = 'weekly') {
+    currentLeaderboardType = type;
     const list = document.getElementById('leaderboard-list');
     list.innerHTML = '<p style="text-align:center">Načítám legendy...</p>';
     document.getElementById('leaderboard-modal').classList.remove('hidden');
+
+    // Aktualizace vizuálu tlačítek přepínače
+    const btnWeekly = document.getElementById('btn-lb-weekly');
+    const btnAlltime = document.getElementById('btn-lb-alltime');
+    if (btnWeekly && btnAlltime) {
+        btnWeekly.classList.toggle('active', type === 'weekly');
+        btnAlltime.classList.toggle('active', type === 'alltime');
+    }
 
     db.ref('users').once('value').then((snapshot) => {
         const data = snapshot.val();
         if (!data) return;
 
         let usersArray = [];
+        const thisWeekStr = getCurrentWeekString();
+
+        // 1. Shromáždíme data o všech uživatelích
         for (let name in data) {
+            let uData = data[name];
+            
+            // Pojistka pro týdenní čas
+            let weeklyCas = uData.weekly_time || 0;
+            if (uData.current_week !== thisWeekStr) {
+                weeklyCas = 0; 
+            }
+
             usersArray.push({
                 name: name,
-                total_cas: data[name].total_cas || 0,
-                equipped: data[name].equipped_items || {},
-                // Načteme streaky z databáze
-                streaks: data[name].streaks || {},
-                active_streak: data[name].active_streak || 'red'
+                total_cas: uData.total_cas || 0,
+                weekly_time: weeklyCas,
+                equipped: uData.equipped_items || {},
+                streaks: uData.streaks || {},
+                active_streak: uData.active_streak || 'red',
+                trophies: uData.trophies || 0
             });
         }
 
-        usersArray.sort((a, b) => b.total_cas - a.total_cas);
+        // 2. Třídění a filtrování podle typu žebříčku
+        let displayedUsers = [];
+
+        if (type === 'weekly') {
+            // Týdenní: Všichni, co se učili aspoň minutu (60s)
+            displayedUsers = usersArray.filter(u => u.weekly_time >= 60);
+            displayedUsers.sort((a, b) => b.weekly_time - a.weekly_time);
+        } else {
+            // Celkový: Pouze TOP 10 nejlepších
+            usersArray.sort((a, b) => b.total_cas - a.total_cas);
+            displayedUsers = usersArray.slice(0, 10);
+        }
 
         list.innerHTML = '';
-        usersArray.slice(0, 10).forEach((user, index) => {
+
+        // Ošetření prázdného žebříčku na začátku týdne
+        if (displayedUsers.length === 0 && type === 'weekly') {
+            list.innerHTML = '<p style="text-align:center; padding: 20px; color: #555;">Tento týden se ještě nikdo neučil aspoň minutu. Běž do toho a urvi první místo!</p>';
+            return;
+        }
+
+        // 3. Vykreslení řádků
+        displayedUsers.forEach((user, index) => {
             const getImageFromName = (itemName, isSkin = false) => {
                 if (!itemName) return isSkin ? 'assets/skin_default.png' : '';
                 const foundItem = ITEMS.find(i => i.nazev === itemName);
@@ -474,26 +542,26 @@ function showLeaderboard() {
             const obojekSrc = getImageFromName(user.equipped.obojek);
             const cepiceSrc = getImageFromName(user.equipped.cepice);
 
-            // --- TADY JE TEN NOVÝ KÓD PRO STREAK V ŽEBŘÍČKU ---
             const activeStreak = user.active_streak;
             const streakCount = user.streaks[activeStreak] || 0;
             const icons = { red: '🔥', gold: '⭐', diamond: '💎' };
             const streakHtml = `<span class="player-streak">${icons[activeStreak]} ${streakCount}</span>`;
-            // --------------------------------------------------
+            const trophyHtml = `<span class="player-streak" style="background: #fff3cd; border-color: #ffeeba;"><img src="assets/trophy_button.png" style="width: 12px; height: 12px; vertical-align: middle; margin-bottom: 2px;"> ${user.trophies}</span>`;
 
+            const displayedTime = type === 'weekly' ? user.weekly_time : user.total_cas;
+
+            // --- TADY SE DĚJE TO ZVÝRAZNĚNÍ TEBE ---
+            const isMeClass = (user.name === currentUser) ? 'is-me' : '';
+            
             const item = document.createElement('div');
             let rankClass = '';
             if (index === 0) rankClass = 'rank-gold';
             else if (index === 1) rankClass = 'rank-silver';
             else if (index === 2) rankClass = 'rank-bronze';
             
-            item.className = `leaderboard-item ${rankClass}`;
-            
-            // --- NOVÉ: Kliknutí na celý obdélník ---
+            item.className = `leaderboard-item ${rankClass} ${isMeClass}`;
             item.onclick = () => showFeed('profile', user.name);
-            // ---------------------------------------
             
-            // Smazali jsme onclick ze spanu p-name, protože se teď kliká na celý obdélník
             item.innerHTML = `
                 <div class="lb-rank">${index + 1}.</div>
                 <div class="mini-cici-lb">
@@ -505,8 +573,11 @@ function showLeaderboard() {
                 </div>
                 <div class="lb-info">
                     <span class="p-name clickable-name">${user.name}</span>
-                    ${streakHtml}
-                    <span class="p-time">⏱ ${formatTime(user.total_cas)}</span>
+                    <div style="display: flex; gap: 5px; margin-top: 2px;">
+                        ${streakHtml}
+                        ${trophyHtml}
+                    </div>
+                    <span class="p-time">⏱ ${formatTime(displayedTime)}</span>
                 </div>
             `;
             list.appendChild(item);
@@ -514,6 +585,93 @@ function showLeaderboard() {
     });
 }
 
+// --- GLOBÁLNÍ VYHODNOCENÍ TÝDNE (Pouze pro prvního hráče v novém týdnu) ---
+function processWeeklyLeaderboard() {
+    const thisWeek = getCurrentWeekString();
+
+    // 1. Podíváme se do globální statistiky, jestli už tento týden nebyl vyhodnocen
+    db.ref('global_stats/last_evaluated_week').once('value').then(snapshot => {
+        const lastWeek = snapshot.val();
+
+        if (lastWeek !== thisWeek) {
+            console.log("Jsem první v tomto týdnu! Vyhodnocuji žebříček pro všechny...");
+            
+            // 2. Stáhneme všechny uživatele
+            db.ref('users').once('value').then(usersSnap => {
+                const users = usersSnap.val();
+                if (!users) return;
+
+                let winner = null;
+                let maxTime = 0;
+
+                // 3. Najdeme absolutního vítěze
+                for (let username in users) {
+                    let wt = users[username].weekly_time || 0;
+                    if (wt > maxTime) {
+                        maxTime = wt;
+                        winner = username;
+                    }
+                }
+
+                // 4. Připravíme obří update pro databázi
+                let updates = {};
+
+                // A) Pokud MÁME vítěze (někdo se fakt učil)
+                if (winner && maxTime > 0) {
+                    // Přidáme trofej a 100 catcoinů
+                    let currentTrophies = users[winner].trophies || 0;
+                    let currentCoins = users[winner].coins || 0;
+                    
+                    updates[`users/${winner}/trophies`] = currentTrophies + 1;
+                    updates[`users/${winner}/coins`] = currentCoins + 100;
+                    
+                    console.log(`Vítězem se stává: ${winner} s časem ${maxTime} sekund!`);
+
+                    const notifObj = {
+                        text: `${winner} vyhrál minulý týdenní turnaj, minulý týden se učil ${formatTimeText(maxTime)}, dostal 100 catcoinů a trofej, gratulujeme!`,
+                        time: Date.now(),
+                        read: false,
+                        type: 'system'
+                    };
+
+                    // Projedeme VŠECHNY hráče: vynulujeme jim čas a pošleme notifikaci
+                    for (let username in users) {
+                        updates[`users/${username}/weekly_time`] = 0;
+                        updates[`users/${username}/current_week`] = thisWeek;
+                        
+                        // Vygenerujeme unikátní ID pro novou notifikaci v databázi
+                        let newNotifId = db.ref().child(`users/${username}/notifications`).push().key;
+                        updates[`users/${username}/notifications/${newNotifId}`] = notifObj;
+                    }
+                } else {
+                    // B) Pokud nebyl žádný vítěz (všichni na to celý týden kašlali)
+                    for (let username in users) {
+                        updates[`users/${username}/weekly_time`] = 0;
+                        updates[`users/${username}/current_week`] = thisWeek;
+                    }
+                }
+
+                // C) Zaregistrujeme, že tento týden je hotový
+                updates['global_stats/last_evaluated_week'] = thisWeek;
+
+                // 5. Pošleme to všechno do Firebase najednou
+                db.ref().update(updates).then(() => {
+                    // Pokud jsi vítěz zrovna ty, musíme ti aktualizovat tvoji obrazovku
+                    if (winner === currentUser) {
+                        state.trophies = (state.trophies || 0) + 1;
+                        state.coins = (state.coins || 0) + 100;
+                        state.weekly_time = 0;
+                        updateHUD(); // Překreslí počítadlo mincí na obrazovce
+                        alert(`🏆 Gratulujeme! Stal ses králem minulého týdne, získáváš trofej a 100 catcoinů!`);
+                    } else {
+                        // Pokud jsi nevyhrál, jen si vynulujeme lokální čas
+                        state.weekly_time = 0;
+                    }
+                });
+            });
+        }
+    });
+}
 // --- LOGIKA OBCHODU ---
 function renderShop(category) {
     const grid = document.getElementById('shop-items-grid');
@@ -598,6 +756,21 @@ function formatTime(totalSeconds) {
     const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
     const s = String(totalSeconds % 60).padStart(2, '0');
     return `${h}:${m}:${s}`;
+}
+
+// --- NOVÁ FUNKCE: Přirozený český formát času (např. pro notifikace) ---
+function formatTimeText(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+
+    let textParts = [];
+    if (h > 0) textParts.push(`${h}h`);
+    if (m > 0) textParts.push(`${m}m`);
+    // Sekundy ukážeme jen tehdy, když se učil méně než minutu, nebo chceme být přesní
+    if (s > 0 || textParts.length === 0) textParts.push(`${s}s`);
+
+    return textParts.join(' '); // Vrátí např. "1h 30m" nebo "45s"
 }
 
 // --- ZÁMEK OBRAZOVKY (WAKE LOCK) ---
@@ -829,16 +1002,36 @@ function confirmAction(text, callback) {
 // --- PŘÁTELÉ ---
 function addFriend() {
     const friendName = document.getElementById('friend-input').value.trim();
+    
+    // Zabráníme přidání sebe sama nebo prázdného jména
     if (!friendName || friendName === currentUser) return;
 
+    // --- NOVÁ POJISTKA PROTI SPAMU ---
+    // Zkontrolujeme, jestli už ho náhodou nemáme v přátelích
+    if (state.friends && state.friends[friendName]) {
+        alert("Tohoto parťáka už přece sleduješ!");
+        document.getElementById('friend-input').value = '';
+        return;
+    }
+
+    // Zeptáme se databáze, jestli ten člověk vůbec existuje
     db.ref('users/' + friendName).once('value').then((snapshot) => {
         if (snapshot.exists()) {
             if (!state.friends) state.friends = {};
+            
+            // Přidáme si ho do lokálního stavu
             state.friends[friendName] = true;
+            
+            // --- NOVÉ: ODESLÁNÍ NOTIFIKACE ---
+            // Využijeme tvou už existující funkci
+            sendNotificationToUser(friendName, `Hráč ${currentUser} si tě právě přidal/a do přátel! Běž mu ukázat, jak se to dělá!`);
             
             saveData();
             document.getElementById('friend-input').value = '';
             renderFriends();
+            
+            // Dáme hráči vědět, že se to povedlo
+            alert(`Úspěšně jsi přidal/a hráče ${friendName} do přátel!`);
         } else {
             alert("Tenhle uživatel neexistuje! Pozvi ho, ať začne studovat.");
         }
@@ -869,6 +1062,8 @@ function renderFriends() {
 
     Promise.all(fetchPromises).then(friendsData => {
         let validFriends = friendsData.filter(f => f !== null);
+        
+        // Přátele řadíme standardně podle celkového času
         validFriends.sort((a, b) => (b.total_cas || 0) - (a.total_cas || 0));
 
         list.innerHTML = '';
@@ -888,23 +1083,24 @@ function renderFriends() {
             const obojekSrc = getImageFromName(equipped.obojek);
             const cepiceSrc = getImageFromName(equipped.cepice);
 
-            // --- TADY JSOU STREAKY PŘÁTEL ---
+            // --- STREAKY (Zůstávají v levém horním rohu přes CSS třídu) ---
             const activeStreak = data.active_streak || 'red';
             const streakCount = data.streaks ? data.streaks[activeStreak] || 0 : 0;
             const icons = { red: '🔥', gold: '⭐', diamond: '💎' };
-            
-            // TADY JE ZMĚNA: Použijeme tu novou CSS třídu .friend-streak
             const streakHtml = `<div class="friend-streak">${icons[activeStreak]} ${streakCount}</div>`;
+
+            // --- TROFEJE (Předěláno na malý odznáček bez absolutní pozice) ---
+            const trophiesCount = data.trophies || 0;
+            const trophyHtml = `<span style="background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px; padding: 1px 4px; font-size: 10px; font-weight: bold; color: #333; display: flex; align-items: center; gap: 2px; text-shadow: none; box-shadow: 0 1px 0px #000;">
+                <img src="assets/trophy_button.png" style="width: 10px; height: 10px; object-fit: contain;"> ${trophiesCount}
+            </span>`;
 
             const item = document.createElement('div');
             item.className = 'friend-card';
             
-            // --- NOVÉ: Kliknutí na celou kartičku ---
             item.onclick = () => showFeed('profile', friendName);
-            // ----------------------------------------
             
-            // Všimni si "event.stopPropagation();" u tlačítka remove-friend-btn! 
-            // To zabrání otevření profilu při mazání kamaráda.
+            // --- ÚPRAVA HTML: Vložení do flexboxu vedle jména ---
             item.innerHTML = `
                 ${streakHtml}
                 
@@ -917,7 +1113,10 @@ function renderFriends() {
                 </div>
                 
                 <div class="friend-info">
-                    <span class="friend-name clickable-name">${friendName}</span>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        ${trophyHtml}
+                        <span class="friend-name clickable-name">${friendName}</span>
+                    </div>
                     <span class="friend-time">⏱ ${formatTime(data.total_cas || 0)}</span>
                 </div>
                 
@@ -957,6 +1156,7 @@ function savePost() {
     // Nyní přidělíme odložené coiny a čas
     state.total_cas += pendingPostData.totalSeconds;
     state.coins += pendingPostData.earnedCoins;
+    state.weekly_time += pendingPostData.totalSeconds;
     
     saveData();
     updateHUD();
@@ -1081,6 +1281,71 @@ function broadcastGlobalNotification(text) {
     });
 }
 
+// --- OPRAVA ČASU U PŘÍSPĚVKU ---
+function editPostTime(timestamp) {
+    if (!state.posts || !state.posts[timestamp]) return;
+    const post = state.posts[timestamp];
+
+    // Zjistíme aktuální minuty
+    const oldMinutes = Math.floor(post.totalSeconds / 60);
+    
+    // Použijeme jednoduchý prompt pro zadání nového času
+    const input = prompt(`Tento záznam má aktuálně ${oldMinutes} minut.\nZadej NOVÝ (menší) čas v celých minutách:`);
+    if (!input) return; // Uživatel to zrušil
+
+    const newMinutes = parseInt(input);
+    
+    // Validace nesmyslů
+    if (isNaN(newMinutes) || newMinutes < 0) {
+        alert("Musíš zadat platné číslo!");
+        return;
+    }
+
+    // Ochrana proti podvádění (zvyšování času)
+    if (newMinutes >= oldMinutes) {
+        alert("Čas můžeš pouze snížit, abys opravil chybu. Zvyšovat čas nelze!");
+        return;
+    }
+
+    // --- MATEMATIKA ---
+    const oldSeconds = post.totalSeconds;
+    const newSeconds = newMinutes * 60;
+    const timeDiff = oldSeconds - newSeconds;
+
+    // Výpočet rozdílu mincí (1 coin = 180 sekund, tzn. 3 minuty)
+    // Pokud post staré coiny uložené nemá, spočítáme je
+    const oldCoins = post.earnedCoins !== undefined ? post.earnedCoins : Math.floor(oldSeconds / 180);
+    const newCoins = Math.floor(newSeconds / 180);
+    const coinDiff = oldCoins - newCoins;
+
+    // --- AKTUALIZACE DAT ---
+    // 1. Upravíme samotný post
+    post.totalSeconds = newSeconds;
+    post.earnedCoins = newCoins;
+    
+    // Přidáme malou poznámku do popisku, aby všichni viděli, že byl hráč poctivý
+    post.description = (post.description || "") + `\n(Upraveno: sníženo z ${oldMinutes} min)`;
+
+    // 2. Upravíme globální statistiky hráče (nesmí jít do mínusu)
+    state.total_cas = Math.max(0, (state.total_cas || 0) - timeDiff);
+    state.weekly_time = Math.max(0, (state.weekly_time || 0) - timeDiff);
+    state.coins = Math.max(0, (state.coins || 0) - coinDiff);
+    
+    // Pokud to byla dnešní session, odečteme i z dnešního času
+    const today = new Date().toDateString();
+    const postDate = new Date(parseInt(timestamp)).toDateString();
+    if (today === postDate) {
+        state.daily_time = Math.max(0, (state.daily_time || 0) - timeDiff);
+    }
+
+    // 3. Uložíme a překreslíme
+    saveData();
+    updateHUD();
+    showFeed(currentFeedContext.type, currentFeedContext.username);
+    
+    alert(`Úspěšně opraveno! Čas byl snížen o ${Math.floor(timeDiff / 60)} minut a bylo ti odečteno ${coinDiff} catcoinů.`);
+}
+
 function renderPosts(postsArray, container, defaultAuthor) {
     if (postsArray.length === 0) {
         container.innerHTML = '<p style="text-align:center; margin-top:20px;">Zatím žádné záznamy o učení.</p>';
@@ -1103,6 +1368,9 @@ function renderPosts(postsArray, container, defaultAuthor) {
         const commentsCount = post.comments ? post.comments.length : 0;
 
         const likeIconSrc = isLiked ? 'assets/like_full.png' : 'assets/like_blank.png';
+        
+        // --- NOVINKA: Zjistíme, jestli je hráč autorem příspěvku ---
+        const isAuthor = (author === currentUser);
 
         const div = document.createElement('div');
         div.className = 'post-card';
@@ -1126,6 +1394,8 @@ function renderPosts(postsArray, container, defaultAuthor) {
                     <img class="comment-icon" src="assets/comment.png" alt="comment" width="18" height="18">
                     <span class="count">${commentsCount}</span>
                 </button>
+                
+                ${isAuthor ? `<button class="edit-btn action-button" style="padding: 6px 8px; font-size:14px; background-color: #f0ad4e;">✏️ Snížit čas</button>` : ''}
             </div>
             <div class="post-comments" style="margin-top: 8px; padding-left: 8px; border-left: 2px solid #ddd;">
                 ${post.comments && post.comments.length ? post.comments.map(c => `<div style="margin-bottom:4px;"><strong>${c.author}:</strong> ${c.text}</div>`).join('') : '<p style="opacity:0.7;">Žádné komentáře.</p>'}
@@ -1134,6 +1404,7 @@ function renderPosts(postsArray, container, defaultAuthor) {
 
         const likeBtn = div.querySelector('.like-btn');
         const commentBtn = div.querySelector('.comment-btn');
+        const editBtn = div.querySelector('.edit-btn'); // Tohle tu bude existovat jen pokud je isAuthor pravda
 
         likeBtn.addEventListener('click', e => {
             e.stopPropagation();
@@ -1144,6 +1415,14 @@ function renderPosts(postsArray, container, defaultAuthor) {
             e.stopPropagation();
             addComment(author, post.timestamp);
         });
+
+        // --- BINDING KLIKNUTÍ NA UPRAVIT ---
+        if (editBtn) {
+            editBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                editPostTime(post.timestamp);
+            });
+        }
 
         container.appendChild(div);
     });
@@ -1320,7 +1599,12 @@ function setupEventListeners() {
         if (confirmCallback) confirmCallback(false);
     });
     
-    document.getElementById('open-leaderboard-btn').addEventListener('click', showLeaderboard);
+    // Upravené otevírání žebříčku (ukáže rovnou weekly)
+    document.getElementById('open-leaderboard-btn').addEventListener('click', () => showLeaderboard('weekly'));
+    
+    // Tlačítka pro přepínání uvnitř okna
+    document.getElementById('btn-lb-weekly').addEventListener('click', () => showLeaderboard('weekly'));
+    document.getElementById('btn-lb-alltime').addEventListener('click', () => showLeaderboard('alltime'));
     document.getElementById('close-leaderboard-btn').addEventListener('click', () => {
         document.getElementById('leaderboard-modal').classList.add('hidden');
     });

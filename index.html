@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=38">
+    <link rel="stylesheet" href="style.css?v=39">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -87,8 +87,14 @@
         <footer class="hud-bottom">
             <div class="player-info-row">
                 <p>Hráč: <span id="player-name-display">Neznámý</span></p>
-                <span id="all-streaks-display" class="all-streaks">0🔥 0⭐ 0💎</span>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <span id="trophy-display" class="all-streaks">
+                        <img src="assets/trophy_button.png" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-bottom: 2px;"> 0
+                    </span>
+                    <span id="all-streaks-display" class="all-streaks">0🔥 0⭐ 0💎</span>
+                </div>
             </div>
+
             <hr class="hud-separator">
             
             <p>Dneska ses učil:</p>
@@ -106,7 +112,7 @@
             <p class="total-time-label">Celkově už se učíš:</p>
             <p id="total-time-display" class="total-time-value">0 hodin 0 minut a 0 sekund</p>
             
-            <p class="version">v0.1.5 (Komentáře, lajky, oznámení)</p>
+            <p class="version">v0.1.6 (Týdenní turnaj)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -128,6 +134,12 @@
             <div class="modal-content shop-content"> 
                 <button id="close-leaderboard-btn" class="close-btn">X</button>
                 <h2 class="shop-title">Elita národa</h2>
+
+                <div class="shop-tabs" id="leaderboard-tabs" style="margin-bottom: 10px;">
+                    <button class="tab-btn active" id="btn-lb-weekly">Týdenní turnaj</button>
+                    <button class="tab-btn" id="btn-lb-alltime">Celkově</button>
+                </div>
+
                 <div id="leaderboard-list"></div>
             </div>
         </div>
@@ -196,7 +208,7 @@
                     <textarea id="global-notif-text" placeholder="Zpráva pro všechny" rows="2" style="width: 100%; min-height: 45px; max-height: 30vh; padding:8px; border:2px solid #000; border-radius:8px; resize:none; overflow:auto; font-family: inherit;"></textarea>
                     <button id="send-global-notif-btn" class="action-button" style="padding:8px 14px; width: fit-content;">Poslat všem</button>
                 </div>
-                <div id="notifications-list" style="margin-top: 10px; max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
+                <div id="notifications-list"></div>
             </div>
         </div>
 
@@ -212,6 +224,6 @@
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=38"></script>
+    <script src="script.js?v=39"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v24';
+const CACHE_NAME = 'studywithcici-pwa-v25';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
@@ -13,6 +13,7 @@ const ASSETS_TO_CACHE = [
     './manifest.json',
     './ikona-192.png',
     './ikona-512.png',
+    './pozadi_vyska.png?v=25',
 
     // UI a prostředí
     './assets/pozadi.png',
