@@ -403,11 +403,7 @@ function renderNotifications() {
     }
 
     state.notifications
-        .sort((a, b) => {
-            if (a.isGlobal && !b.isGlobal) return -1;
-            if (!a.isGlobal && b.isGlobal) return 1;
-            return b.id - a.id;
-        })
+        .sort((a, b) => b.id - a.id)
         .forEach(notification => {
             const item = document.createElement('div');
             item.style.border = '1px solid #ccc';
