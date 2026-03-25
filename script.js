@@ -174,9 +174,32 @@ function init() {
 
 
 // --- DATABÁZE A PŘIHLAŠOVÁNÍ (FIREBASE CLOUD) ---
-function saveData() {
+function saveData(keysToSave = null) {
     if (!currentUser) return; 
-    db.ref('users/' + currentUser).set(state);
+
+    // A) POKUD JSME POSLALI KONKRÉTNÍ ARGUMENTY (např. saveData(['coins', 'total_cas']))
+    if (keysToSave && Array.isArray(keysToSave)) {
+        let updates = {};
+        keysToSave.forEach(key => {
+            if (state[key] !== undefined) {
+                updates[key] = state[key]; // Vezmeme jen ty konkrétní věci ze state
+            }
+        });
+        // .update() zapíše jen tyhle klíče a zbytek databáze nechá na pokoji!
+        db.ref('users/' + currentUser).update(updates);
+    } 
+    // B) POKUD JSME ZAVOLALI JEN saveData() BEZ ARGUMENTŮ
+    else {
+        // Uděláme si dočasnou kopii celého našeho stavu
+        let stateCopy = JSON.parse(JSON.stringify(state));
+        
+        // ULTIMÁTNÍ OCHRANA: Smažeme z kopie notifikace! 
+        // Tím pádem je funkce .update() vůbec nepošle do Firebase a nepřepíše je.
+        delete stateCopy.notifications; 
+        
+        // Zápis do databáze (zase přes bezpečnější .update)
+        db.ref('users/' + currentUser).update(stateCopy);
+    }
 }
 
 // --- DATABÁZE A PŘIHLAŠOVÁNÍ (FIREBASE CLOUD) ---
@@ -243,7 +266,7 @@ function registerUser() {
                 currentUser = username;
                 state = JSON.parse(JSON.stringify(DEFAULT_STATE));
                 state.password = password; 
-                saveData();
+                saveData(Object.keys(state));
                 
                 alert("Účet úspěšně vytvořen! Vítej ve hře.");
                 finishLogin(username, password);
@@ -368,7 +391,7 @@ function addLocalNotification(message) {
         date: new Date().toLocaleString('cs-CZ'),
         read: false,
     });
-    saveData();
+    saveData(['notifications']);
     updateNotificationBadge();
 }
 
@@ -420,7 +443,7 @@ function renderNotifications() {
 
         item.addEventListener('click', () => {
             notification.read = true;
-            saveData();
+            saveData(['notifications']);
             renderNotifications();
             updateNotificationBadge();
         });
@@ -432,7 +455,7 @@ function renderNotifications() {
 function markAllNotificationsRead() {
     if (!state.notifications) return;
     state.notifications = state.notifications.map(notif => ({ ...notif, read: true }));
-    saveData();
+    saveData(['notifications']);
     updateNotificationBadge();
 }
 
@@ -723,7 +746,7 @@ function handleItemClick(item) {
         if (state.coins >= item.cena) {
             state.coins -= item.cena;
             state.owned_items.push(item.nazev);
-            saveData();
+            saveData(['coins', 'owned_items']);
             updateHUD();
             renderShop(currentShopCategory);
         } else {
@@ -740,7 +763,7 @@ function handleItemClick(item) {
             state.equipped_items[item.typ] = item.nazev;
         }
         
-        saveData();
+        saveData(['equipped_items']);
         updateCharacter();
         renderShop(currentShopCategory);
     }
@@ -1022,7 +1045,7 @@ function addFriend() {
             // Využijeme tvou už existující funkci
             sendNotificationToUser(friendName, `Hráč ${currentUser} si tě právě přidal/a do přátel! Běž mu ukázat, jak se to dělá!`);
             
-            saveData();
+            saveData(['friends']);
             document.getElementById('friend-input').value = '';
             renderFriends();
             
@@ -1127,7 +1150,7 @@ function renderFriends() {
 function removeFriend(name) {
     if (state.friends && state.friends[name]) {
         delete state.friends[name];
-        saveData();
+        saveData(['friends']);
         renderFriends();
     }
 }
@@ -1154,7 +1177,7 @@ function savePost() {
     state.coins += pendingPostData.earnedCoins;
     state.weekly_time += pendingPostData.totalSeconds;
     
-    saveData();
+    saveData(['posts', 'total_cas', 'coins', 'weekly_time', 'daily_time', 'streaks', 'awarded_today', 'last_date']);
     updateHUD();
     
     document.getElementById('post-create-modal').classList.add('hidden');
@@ -1335,7 +1358,7 @@ function editPostTime(timestamp) {
     }
 
     // 3. Uložíme a překreslíme
-    saveData();
+    saveData(['posts', 'total_cas', 'weekly_time', 'coins', 'daily_time']);
     updateHUD();
     showFeed(currentFeedContext.type, currentFeedContext.username);
     
@@ -1463,7 +1486,7 @@ function toggleLike(author, timestamp) {
             }
         }
 
-        saveData();
+        saveData(['posts']);
         updateHUD();
         showFeed(currentFeedContext.type, currentFeedContext.username);
         return;
@@ -1508,7 +1531,7 @@ function addComment(author, timestamp) {
         post.comments = post.comments || [];
         post.comments.push(comment);
 
-        saveData();
+        saveData(['posts']);
         updateHUD();
         showFeed(currentFeedContext.type, currentFeedContext.username);
         return;
@@ -1618,7 +1641,7 @@ function setupEventListeners() {
     
     document.getElementById('streak-selector').addEventListener('change', (e) => {
         state.active_streak = e.target.value;
-        saveData(); // Uloží to hned do Firebase
+        saveData(['active_streak']); // Uloží to hned do Firebase
         updateHUD(); // Hned to překreslí nápis
     });
 

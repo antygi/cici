@@ -1411,4 +1411,41 @@ body {
         bottom: 12vh; /* Zvedneme ji ještě o kousek výš, protože tlačítka šla nahoru */
         height: 50vh; 
     }
+    
+    /* Úprava vnitřku obchodu pro mobily na výšku */
+    .shop-content {
+        width: 95vw;
+        height: 85vh;
+        padding: 10px;
+    }
+
+    .shop-tabs {
+        gap: 5px;
+    }
+
+    .tab-btn {
+        padding: 8px 10px;
+        font-size: 12px; /* Menší tlačítka, aby se jich vešlo víc vedle sebe */
+    }
+
+    .items-grid {
+        /* Dva sloupce vedle sebe i na malém mobilu */
+        grid-template-columns: repeat(2, 1fr); 
+        gap: 10px;
+    }
+
+    .shop-item {
+        padding: 8px;
+    }
+
+    .shop-item img, .shop-image-container {
+        width: 70px; /* Menší náhledy, aby se to tam nepřebíjelo */
+        height: 70px;
+    }
+
+    .shop-coins {
+        top: 5px;
+        left: 10px;
+        font-size: 20px;
+    }
 }
