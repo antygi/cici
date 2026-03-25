@@ -13,7 +13,7 @@ const ASSETS_TO_CACHE = [
     './manifest.json',
     './ikona-192.png',
     './ikona-512.png',
-    './assets/pozadi_vyska.png?v=27',
+    './assets/pozadi_vyska.png?v=25',
 
     // UI a prostředí
     './assets/pozadi.png',
