@@ -98,8 +98,8 @@ const DEFAULT_STATE = {
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE)); 
 
 // --- POMOCNÁ FUNKCE PRO ZJIŠTĚNÍ AKTUÁLNÍHO TÝDNE ---
-function getCurrentWeekString() {
-    const d = new Date();
+function getCurrentWeekString(dateInput = new Date()) { // TADY JE ZMĚNA
+    const d = new Date(dateInput); // TADY JE ZMĚNA
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
     const week1 = new Date(d.getFullYear(), 0, 4);
@@ -1329,40 +1329,44 @@ function editPostTime(timestamp) {
     // --- MATEMATIKA ---
     const oldSeconds = post.totalSeconds;
     const newSeconds = newMinutes * 60;
-    const timeDiff = oldSeconds - newSeconds;
+    const diffSeconds = oldSeconds - newSeconds;
 
     // Výpočet rozdílu mincí (1 coin = 180 sekund, tzn. 3 minuty)
-    // Pokud post staré coiny uložené nemá, spočítáme je
     const oldCoins = post.earnedCoins !== undefined ? post.earnedCoins : Math.floor(oldSeconds / 180);
     const newCoins = Math.floor(newSeconds / 180);
-    const coinDiff = oldCoins - newCoins;
+    const diffCoins = oldCoins - newCoins;
 
-    // --- AKTUALIZACE DAT ---
-    // 1. Upravíme samotný post
+    // --- AKTUALIZACE DAT (LOKÁLNĚ) ---
     post.totalSeconds = newSeconds;
     post.earnedCoins = newCoins;
-    
-    // Přidáme malou poznámku do popisku, aby všichni viděli, že byl hráč poctivý
     post.description = (post.description || "") + `\n(Upraveno: sníženo z ${oldMinutes} min)`;
 
-    // 2. Upravíme globální statistiky hráče (nesmí jít do mínusu)
-    state.total_cas = Math.max(0, (state.total_cas || 0) - timeDiff);
-    state.weekly_time = Math.max(0, (state.weekly_time || 0) - timeDiff);
-    state.coins = Math.max(0, (state.coins || 0) - coinDiff);
-    
-    // Pokud to byla dnešní session, odečteme i z dnešního času
+    // 1. Snížení celkového času a mincí (platí vždy napříč historií)
+    state.total_cas = Math.max(0, (state.total_cas || 0) - diffSeconds);
+    state.coins = Math.max(0, (state.coins || 0) - diffCoins);
+
+    // 2. Ochrana pro týdenní čas (jen pokud je post reálně z tohoto týdne)
+    const postWeek = getCurrentWeekString(parseInt(timestamp));
+    const thisWeek = getCurrentWeekString();
+    if (postWeek === thisWeek) {
+        state.weekly_time = Math.max(0, (state.weekly_time || 0) - diffSeconds);
+    }
+
+    // 3. Ochrana pro denní čas (jen pokud je post reálně z dneška)
     const today = new Date().toDateString();
     const postDate = new Date(parseInt(timestamp)).toDateString();
     if (today === postDate) {
-        state.daily_time = Math.max(0, (state.daily_time || 0) - timeDiff);
+        state.daily_time = Math.max(0, (state.daily_time || 0) - diffSeconds);
     }
 
-    // 3. Uložíme a překreslíme
-    saveData(['posts', 'total_cas', 'weekly_time', 'coins', 'daily_time']);
+    // --- CÍLENÉ ULOŽENÍ DO DATABÁZE ---
+    saveData(['posts', 'total_cas', 'weekly_time', 'daily_time', 'coins']);
+
+    // Refresh UI
     updateHUD();
     showFeed(currentFeedContext.type, currentFeedContext.username);
     
-    alert(`Úspěšně opraveno! Čas byl snížen o ${Math.floor(timeDiff / 60)} minut a bylo ti odečteno ${coinDiff} catcoinů.`);
+    alert(`Úspěšně opraveno! Čas byl snížen o ${Math.floor(diffSeconds / 60)} minut a bylo ti odečteno ${diffCoins} catcoinů.`);
 }
 
 function renderPosts(postsArray, container, defaultAuthor) {
