@@ -1282,13 +1282,6 @@ function savePost() {
     state.coins += pendingPostData.earnedCoins;
     state.weekly_time += pendingPostData.totalSeconds;
     
-    // ... (začátek funkce savePost zůstává stejný) ...
-
-    // Nyní přidělíme odložené coiny a čas
-    state.total_cas += pendingPostData.totalSeconds;
-    state.coins += pendingPostData.earnedCoins;
-    state.weekly_time += pendingPostData.totalSeconds;
-    
     // ZÁSADNÍ ZMĚNA: Neukládáme všechny posty plošně!
     // Pošleme Firebase jen tento jeden konkrétní nový příspěvek.
     db.ref('users/' + currentUser + '/posts/' + newPost.timestamp).set(newPost).then(() => {
