@@ -177,13 +177,14 @@ body {
 
 .modal-content {
     background: #fff;
-    padding: clamp(15px, 3vh, 30px); /* Responzivní padding */
+    padding: clamp(10px, 2vh, 30px); /* Trochu menší padding pro záchranu místa */
     border-radius: 15px;
     border: 4px solid #000;
     position: relative;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    max-width: 95vw; /* Zabránění přetečení přes okraje na mobilu */
+    max-width: 95vw; 
     max-height: 95vh;
+    overflow-y: auto; /* 🌟 TOTO ZACHRÁNÍ VĚC: Povolí scrollování uvnitř okna */
 }
 
 /* Učící okno */
@@ -606,14 +607,14 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2vh;
+    gap: clamp(5px, 1vh, 15px); /* Zmenšil jsem mezery mezi políčky z 2vh na flexibilní */
     width: clamp(300px, 80vw, 500px);
     text-align: center;
 }
 
 .login-content h2 {
-    font-size: clamp(24px, 4vw, 40px);
-    margin-bottom: 1vh;
+    font-size: clamp(20px, 4vw, 40px);
+    margin-bottom: 0; /* Odstranil jsem zbytečný margin pod nadpisem */
 }
 
 #username-input {
