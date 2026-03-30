@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=42">
+    <link rel="stylesheet" href="style.css?v=43">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -15,6 +15,12 @@
         <div id="login-modal" class="modal">
             <div class="modal-content login-content">
                 <h2>Studuj s Čiči!</h2>
+                
+                <div style="background-color: #fff3cd; border: 2px solid #ffeeba; border-radius: 8px; padding: 10px; margin-bottom: 10px; font-size: clamp(12px, 2vw, 14px); color: #856404; text-align: left; line-height: 1.4;">
+                    <strong>⚠️ Důležité upozornění:</strong><br>
+                    Kvůli novému označování v komentářích nesmí jména obsahovat mezery. Všem existujícím hráčům <strong>byla mezera nahrazena podtržítkem</strong>. <br>
+                    <em>(Příklad: "Dan real" se nyní přihlašuje jako "Dan_real"). Hesla zůstala stejná!</em>
+                </div>
                 <input type="text" id="username-input" placeholder="Tvoje jméno" autocomplete="off">
                 <input type="password" id="password-input" placeholder="Tvoje heslo">
                 
@@ -112,7 +118,7 @@
             <p class="total-time-label">Celkově už se učíš:</p>
             <p id="total-time-display" class="total-time-value">0 hodin 0 minut a 0 sekund</p>
             
-            <p class="version">v0.1.6 (Týdenní turnaj)</p>
+            <p class="version">v0.1.7 (Tagy v komentech)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -224,6 +230,6 @@
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=42"></script>
+    <script src="script.js?v=43"></script>
 </body>
 </html>

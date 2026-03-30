@@ -71,6 +71,23 @@ const ITEMS = [
 let currentUser = null; 
 let allUsers = {};      
 let preservedFeedScroll = 0;
+// --- OCHRANA PROTI POSUNU ČASU ---
+let serverTimeOffset = 0;
+
+// Firebase nám sem neustále posílá odchylku mezi časem na mobilu a časem na serveru
+db.ref('.info/serverTimeOffset').on('value', function(snapshot) {
+    serverTimeOffset = snapshot.val() || 0;
+});
+
+// Získání přesného serverového času v milisekundách
+function getTrueTime() {
+    return Date.now() + serverTimeOffset;
+}
+
+// Získání přesného serverového data
+function getTrueDate() {
+    return new Date(getTrueTime());
+}
 
 
 // Tohle je šablona pro nového hráče
@@ -98,8 +115,9 @@ const DEFAULT_STATE = {
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE)); 
 
 // --- POMOCNÁ FUNKCE PRO ZJIŠTĚNÍ AKTUÁLNÍHO TÝDNE ---
-function getCurrentWeekString(dateInput = new Date()) { // TADY JE ZMĚNA
-    const d = new Date(dateInput); // TADY JE ZMĚNA
+// Nyní jako výchozí bere skutečný serverový čas
+function getCurrentWeekString(dateInput = getTrueDate()) { 
+    const d = new Date(dateInput);
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
     const week1 = new Date(d.getFullYear(), 0, 4);
@@ -112,7 +130,7 @@ function checkDateReset() {
     // Bezpečnostní pojistka pro staré účty, aby jim to nespadlo
     if (!state.streaks) state.streaks = { red: 0, gold: 0, diamond: 0 };
     if (!state.awarded_today) state.awarded_today = { red: false, gold: false, diamond: false };
-    if (!state.last_date) state.last_date = new Date().toDateString();
+    if (!state.last_date) state.last_date = getTrueDate().toDateString();
     if (!state.daily_time) state.daily_time = 0;
     if (!state.active_streak) state.active_streak = 'red';
 
@@ -172,6 +190,40 @@ function init() {
     }
 }
 
+async function premenovatHrace(stareJmeno, noveJmeno) {
+    if (!stareJmeno || !noveJmeno || noveJmeno.includes(' ')) {
+        console.error("Špatně zadaná jména! Nové jméno nesmí mít mezeru."); 
+        return;
+    }
+    
+    // 1. Zkopírujeme data starého hráče
+    const snap = await db.ref('users/' + stareJmeno).once('value');
+    if (!snap.exists()) {
+        console.error("Hráč '" + stareJmeno + "' v databázi neexistuje!"); 
+        return;
+    }
+    const data = snap.val();
+    
+    // 2. Připravíme obří update
+    let updates = {};
+    updates['users/' + noveJmeno] = data; // Vytvoříme nového
+    updates['users/' + stareJmeno] = null; // Smažeme starého
+    
+    // 3. Projdeme všechny ostatní hráče a opravíme jim seznam přátel
+    const allUsersSnap = await db.ref('users').once('value');
+    const allUsers = allUsersSnap.val();
+    
+    for (let user in allUsers) {
+        if (allUsers[user].friends && allUsers[user].friends[stareJmeno]) {
+            updates['users/' + user + '/friends/' + stareJmeno] = null; // Odstraníme staré jméno z přátel
+            updates['users/' + user + '/friends/' + noveJmeno] = true;  // Přidáme nové jméno
+        }
+    }
+    
+    // 4. Odešleme to do Firebase naráz
+    await db.ref().update(updates);
+    console.log(`✅ HOTOVO: Hráč "${stareJmeno}" byl úspěšně přejmenován na "${noveJmeno}". Všichni jeho přátelé byli aktualizováni.`);
+}
 
 // --- DATABÁZE A PŘIHLAŠOVÁNÍ (FIREBASE CLOUD) ---
 function saveData(keysToSave = null) {
@@ -256,11 +308,28 @@ function registerUser() {
         return;
     }
 
+    // --- NOVÁ OCHRANA PROTI MEZERÁM A DÉLCE JMÉNA ---
+    if (username.includes(' ')) {
+        alert("Uživatelské jméno nesmí obsahovat mezery! Použij například podtržítko (např. Jan_Novak).");
+        return;
+    }
+
+    if (username.length > 20) {
+        alert("Uživatelské jméno je příliš dlouhé! Maximální povolená délka je 20 znaků.");
+        return;
+    }
+    // -----------------------------------------------
+
+    const loginBtn = document.getElementById('login-btn');
+    loginBtn.innerText = "Zakládám účet...";
+    loginBtn.disabled = true;
+
     db.ref('users/' + username).once('value')
         .then((snapshot) => {
             if (snapshot.exists()) {
                 // Jméno už někdo má
                 alert("Toto jméno už je zabrané, vyber si prosím jiné!");
+                resetLoginBtn();
             } else {
                 // ZAKLÁDÁME NOVÝ ÚČET
                 currentUser = username;
@@ -274,6 +343,7 @@ function registerUser() {
         })
         .catch((error) => {
             alert("Chyba při registraci: " + error.message);
+            resetLoginBtn();
         });
 }
 
@@ -372,6 +442,13 @@ function updateHUD() {
 
 function updateNotificationBadge() {
     if (!state.notifications) state.notifications = [];
+    
+    // --- LÉČIVÁ NÁPLAST ---
+    // Pokud Firebase vrátil objekt místo pole, převedeme ho zpátky
+    if (!Array.isArray(state.notifications)) {
+        state.notifications = Object.values(state.notifications);
+    }
+    
     const unread = state.notifications.filter(n => !n.read).length;
     const badge = document.getElementById('notification-badge');
     if (!badge) return;
@@ -399,7 +476,13 @@ function sendNotificationToUser(username, message) {
     if (!username || !message) return;
 
     db.ref('users/' + username + '/notifications').once('value').then(snapshot => {
-        const notifications = snapshot.val() || [];
+        let notifications = snapshot.val() || [];
+        
+        // --- LÉČIVÁ NÁPLAST ---
+        if (!Array.isArray(notifications)) {
+            notifications = Object.values(notifications);
+        }
+
         notifications.unshift({
             id: Date.now(),
             text: message,
@@ -420,7 +503,15 @@ function sendNotificationToUser(username, message) {
 function renderNotifications() {
     const list = document.getElementById('notifications-list');
     list.innerHTML = '';
-    if (!state.notifications || state.notifications.length === 0) {
+    
+    if (!state.notifications) state.notifications = [];
+    
+    // --- LÉČIVÁ NÁPLAST ---
+    if (!Array.isArray(state.notifications)) {
+        state.notifications = Object.values(state.notifications);
+    }
+
+    if (state.notifications.length === 0) {
         list.innerHTML = '<p style="text-align:center; opacity: 0.8;">Žádná oznámení.</p>';
         return;
     }
@@ -605,6 +696,7 @@ function showLeaderboard(type = 'weekly') {
 }
 
 // --- GLOBÁLNÍ VYHODNOCENÍ TÝDNE (Pouze pro prvního hráče v novém týdnu) ---
+// --- GLOBÁLNÍ VYHODNOCENÍ TÝDNE (Pouze pro prvního hráče v novém týdnu) ---
 function processWeeklyLeaderboard() {
     const thisWeek = getCurrentWeekString();
 
@@ -658,9 +750,13 @@ function processWeeklyLeaderboard() {
                         updates[`users/${username}/weekly_time`] = 0;
                         updates[`users/${username}/current_week`] = thisWeek;
                         
-                        // Vygenerujeme unikátní ID pro novou notifikaci v databázi
-                        let newNotifId = db.ref().child(`users/${username}/notifications`).push().key;
-                        updates[`users/${username}/notifications/${newNotifId}`] = notifObj;
+                        // --- OPRAVA: Místo vytváření nového ID přidáme notifikaci lokálně do pole ---
+                        let userNotifs = users[username].notifications || [];
+                        if (!Array.isArray(userNotifs)) {
+                            userNotifs = Object.values(userNotifs);
+                        }
+                        userNotifs.unshift(notifObj);
+                        updates[`users/${username}/notifications`] = userNotifs;
                     }
                 } else {
                     // B) Pokud nebyl žádný vítěz (všichni na to celý týden kašlali)
@@ -842,7 +938,7 @@ function startStudy(resumeSession = null) {
         studyMode = document.getElementById('study-mode').value;
         studySeconds = 0;
         isPaused = false;
-        lastTickTime = Date.now();
+        lastTickTime = getTrueTime();
         
         if (studyMode === 'pomodoro') {
             const lInput = parseInt(document.getElementById('learn-time-input').value) || 25;
@@ -899,7 +995,7 @@ function startStudy(resumeSession = null) {
             return;
         }
 
-        let now = Date.now();
+        let now = getTrueTime();
         let deltaSeconds = Math.floor((now - lastTickTime) / 1000); 
 
         if (deltaSeconds >= 1) {
@@ -994,7 +1090,7 @@ function stopStudy() {
             const bTime = document.getElementById('break-time-input').value;
             
             pendingPostData = {
-                timestamp: Date.now(),
+                timestamp: getTrueTime(),
                 totalSeconds: studySeconds,
                 method: mode,
                 learnInput: mode === 'pomodoro' ? lTime : null,
@@ -1164,7 +1260,7 @@ function savePost() {
         ...pendingPostData,
         title: title,
         description: desc,
-        dateString: new Date().toLocaleString('cs-CZ'),
+        dateString: getTrueDate().toLocaleString('cs-CZ'),
         likes: {},
         comments: []
     };
@@ -1172,23 +1268,44 @@ function savePost() {
     if (!state.posts) state.posts = {};
     state.posts[newPost.timestamp] = newPost;
     
+    // --- NOVÁ POJISTKA PROTI PŘENOSU ČASU DO NOVÉHO TÝDNE ---
+    const actualWeek = getCurrentWeekString();
+    if (state.current_week !== actualWeek) {
+        console.log("Detekován nový týden při ukládání postu! Nuluji starý čas z minulého týdne.");
+        state.weekly_time = 0;
+        state.current_week = actualWeek;
+    }
+    // --------------------------------------------------------
+
     // Nyní přidělíme odložené coiny a čas
     state.total_cas += pendingPostData.totalSeconds;
     state.coins += pendingPostData.earnedCoins;
     state.weekly_time += pendingPostData.totalSeconds;
     
-    saveData(['posts', 'total_cas', 'coins', 'weekly_time', 'daily_time', 'streaks', 'awarded_today', 'last_date']);
-    updateHUD();
+    // ... (začátek funkce savePost zůstává stejný) ...
+
+    // Nyní přidělíme odložené coiny a čas
+    state.total_cas += pendingPostData.totalSeconds;
+    state.coins += pendingPostData.earnedCoins;
+    state.weekly_time += pendingPostData.totalSeconds;
     
-    document.getElementById('post-create-modal').classList.add('hidden');
-    
-    // Nakonec ukážeme tu odměnu
-    if (pendingPostData.earnedCoins > 0) {
-        setTimeout(() => alert(`Vydělal sis ${pendingPostData.earnedCoins} grošů a tvůj post byl uložen!`), 100);
-    } else {
-        setTimeout(() => alert('Učil ses moc krátkou dobu, ale post jsme ti uložili.'), 100);
-    }
-    pendingPostData = null;
+    // ZÁSADNÍ ZMĚNA: Neukládáme všechny posty plošně!
+    // Pošleme Firebase jen tento jeden konkrétní nový příspěvek.
+    db.ref('users/' + currentUser + '/posts/' + newPost.timestamp).set(newPost).then(() => {
+        
+        // Až se uloží post, uložíme zbytek statistik, ale vynecháme klíč 'posts' z pole!
+        saveData(['total_cas', 'coins', 'weekly_time', 'current_week', 'daily_time', 'streaks', 'awarded_today', 'last_date']);
+        
+        updateHUD();
+        document.getElementById('post-create-modal').classList.add('hidden');
+        
+        if (pendingPostData.earnedCoins > 0) {
+            setTimeout(() => alert(`Vydělal sis ${pendingPostData.earnedCoins} grošů a tvůj post byl uložen!`), 100);
+        } else {
+            setTimeout(() => alert('Učil ses moc krátkou dobu, ale post jsme ti uložili.'), 100);
+        }
+        pendingPostData = null;
+    });
 }
 
 function showFeed(type, username = null) {
@@ -1369,6 +1486,23 @@ function editPostTime(timestamp) {
     alert(`Úspěšně opraveno! Čas byl snížen o ${Math.floor(diffSeconds / 60)} minut a bylo ti odečteno ${diffCoins} catcoinů.`);
 }
 
+// --- POMOCNÁ FUNKCE PRO ZVÝRAZNĚNÍ A KLIKÁNÍ TAGŮ ---
+function formatCommentText(text, validTags) {
+    // Základní obrana: převedeme špičaté závorky na neškodný text
+    let safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
+    if (!validTags || validTags.length === 0) return safeText;
+
+    // Všechny platné tagy obalíme do HTML pro obarvení a přidáme proklik
+    validTags.forEach(tag => {
+        const regex = new RegExp(`@${tag}(?=\\s|$)`, 'g');
+        // Přidali jsme třídu clickable-name a událost onclick
+        safeText = safeText.replace(regex, `<span class="tagged-user clickable-name" onclick="event.stopPropagation(); showFeed('profile', '${tag}')">@${tag}</span>`);
+    });
+    
+    return safeText;
+}
+
 function renderPosts(postsArray, container, defaultAuthor) {
     if (postsArray.length === 0) {
         container.innerHTML = '<p style="text-align:center; margin-top:20px;">Zatím žádné záznamy o učení.</p>';
@@ -1421,7 +1555,7 @@ function renderPosts(postsArray, container, defaultAuthor) {
                 ${isAuthor ? `<button class="edit-btn action-button" style="padding: 6px 8px; font-size:14px; background-color: #f0ad4e;">✏️ Snížit čas</button>` : ''}
             </div>
             <div class="post-comments" style="margin-top: 8px; padding-left: 8px; border-left: 2px solid #ddd;">
-                ${post.comments && post.comments.length ? post.comments.map(c => `<div style="margin-bottom:4px;"><strong>${c.author}:</strong> ${c.text}</div>`).join('') : '<p style="opacity:0.7;">Žádné komentáře.</p>'}
+                ${post.comments && post.comments.length ? post.comments.map(c => `<div style="margin-bottom:4px;"><strong>${c.author}:</strong> ${formatCommentText(c.text, c.validTags)}</div>`).join('') : '<p style="opacity:0.7;">Žádné komentáře.</p>'}
             </div>
         `;
 
@@ -1476,27 +1610,9 @@ function toggleLike(author, timestamp) {
 
     preservedFeedScroll = saveFeedScroll();
 
-    if (author === currentUser) {
-        if (!state.posts || !state.posts[timestamp]) return;
-        const post = state.posts[timestamp];
-        post.likes = post.likes || {};
-
-        if (post.likes[currentUser]) {
-            delete post.likes[currentUser];
-        } else {
-            post.likes[currentUser] = true;
-            if (author !== currentUser) {
-                sendNotificationToUser(author, `${currentUser} ti dal/la lajk na příspěvek: "${post.title || 'tvůj příspěvek'}"`);
-            }
-        }
-
-        saveData(['posts']);
-        updateHUD();
-        showFeed(currentFeedContext.type, currentFeedContext.username);
-        return;
-    }
-
+    // VŽDYCKY používáme cílený update ve Firebase, ať už je to náš post nebo cizí
     const likeRef = db.ref('users/' + author + '/posts/' + timestamp + '/likes');
+    
     likeRef.once('value').then(snapshot => {
         const likes = snapshot.val() || {};
 
@@ -1507,9 +1623,16 @@ function toggleLike(author, timestamp) {
         }
 
         likeRef.set(likes).then(() => {
-            if (likes[currentUser]) {
+            // Jen lokální aktualizace pro okamžité překreslení UI (neukládáme to plošně na server!)
+            if (author === currentUser && state.posts && state.posts[timestamp]) {
+                state.posts[timestamp].likes = likes;
+            }
+            
+            // Odeslání notifikace
+            if (likes[currentUser] && author !== currentUser) {
                 sendNotificationToUser(author, `${currentUser} ti dal/la lajk na příspěvek.`);
             }
+            
             showFeed(currentFeedContext.type, currentFeedContext.username);
         });
     });
@@ -1520,35 +1643,58 @@ function addComment(author, timestamp) {
         alert('Přihlas se, aby ses mohl/a komentovat příspěvky.');
         return;
     }
-    const text = prompt('Napiš komentář:', '');
+    const text = prompt('Napiš komentář (můžeš použít @jmeno pro označení parťáka):', '');
     if (!text || !text.trim()) return;
 
-    const comment = {
-        author: currentUser,
-        text: text.trim(),
-        date: new Date().toLocaleString('cs-CZ')
-    };
+    const commentText = text.trim();
+    // Najdeme všechna slova začínající na zavináč
+    const mentions = commentText.match(/@([^\s]+)/g) || [];
+    const potentialTags = mentions.map(m => m.substring(1));
 
-    if (author === currentUser) {
-        if (!state.posts || !state.posts[timestamp]) return;
-        const post = state.posts[timestamp];
-        post.comments = post.comments || [];
-        post.comments.push(comment);
+    // 1. Otestujeme, která jména v databázi reálně existují
+    const tagPromises = potentialTags.map(tag => {
+        return db.ref('users/' + tag).once('value').then(snap => snap.exists() ? tag : null);
+    });
 
-        saveData(['posts']);
-        updateHUD();
-        showFeed(currentFeedContext.type, currentFeedContext.username);
-        return;
-    }
+    Promise.all(tagPromises).then(results => {
+        // Vyfiltrujeme jen ty, co nejsou null (tedy ty, co existují)
+        const validTags = results.filter(tag => tag !== null);
 
-    sendNotificationToUser(author, `${currentUser} ti napsal/a komentář na tvůj příspěvek: "${comment.text}"`);
+        const comment = {
+            author: currentUser,
+            text: commentText,
+            // Pokud používáš TrueTime, nezapomeň tady použít getTrueDate()
+            date: new Date().toLocaleString('cs-CZ'), 
+            validTags: validTags // Uložíme si seznam reálných hráčů
+        };
 
-    const commentsRef = db.ref('users/' + author + '/posts/' + timestamp + '/comments');
-    commentsRef.once('value').then(snapshot => {
-        const comments = snapshot.val() || [];
-        comments.push(comment);
-        commentsRef.set(comments).then(() => {
-            showFeed(currentFeedContext.type, currentFeedContext.username);
+        // 2. Teprve teď uložíme komentář
+        const commentsRef = db.ref('users/' + author + '/posts/' + timestamp + '/comments');
+        commentsRef.once('value').then(snapshot => {
+            const comments = snapshot.val() || [];
+            comments.push(comment);
+
+            commentsRef.set(comments).then(() => {
+                // Lokální aktualizace UI
+                if (author === currentUser && state.posts && state.posts[timestamp]) {
+                    state.posts[timestamp].comments = comments;
+                }
+
+                // 3. Rozeslání notifikací validním tagům
+                validTags.forEach(taggedUser => {
+                    if (taggedUser !== currentUser) {
+                        sendNotificationToUser(taggedUser, `${currentUser} tě označil/a v komentáři: "${commentText}"`);
+                    }
+                });
+
+                // Upozornění autora (pokud to nejsme my a netagli jsme ho už)
+                const authorMentioned = validTags.includes(author);
+                if (author !== currentUser && !authorMentioned) {
+                    sendNotificationToUser(author, `${currentUser} ti napsal/a komentář: "${commentText}"`);
+                }
+
+                showFeed(currentFeedContext.type, currentFeedContext.username);
+            });
         });
     });
 }

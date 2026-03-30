@@ -1449,3 +1449,23 @@ body {
         font-size: 20px;
     }
 }
+
+/* Zvýraznění tagnutých uživatelů v komentářích */
+.tagged-user {
+    color: #1f3d7a;
+    font-weight: bold;
+    background-color: #e6f0ff;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid #cce0ff;
+    transition: all 0.2s; /* Plynulý přechod */
+}
+
+/* Hover efekt, aby bylo jasné, že je to odkaz */
+.tagged-user.clickable-name:hover {
+    background-color: #cce0ff;
+    text-decoration: underline;
+    transform: scale(1.05);
+    display: inline-block; /* Nutné pro transformaci (zvětšení) */
+}
+
