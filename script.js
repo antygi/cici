@@ -1391,8 +1391,8 @@ function broadcastGlobalNotification(text) {
 
     const payload = {
         text: text.trim(),
-        date: new Date().toLocaleString('cs-CZ'),
-        id: Date.now(),
+        date: getTrueDate().toLocaleString('cs-CZ'), // Používáme náš bezpečný čas
+        id: getTrueTime(),                           // Používáme náš bezpečný čas
         isGlobal: true
     };
 
@@ -1402,17 +1402,28 @@ function broadcastGlobalNotification(text) {
         const updates = {};
 
         Object.keys(users).forEach(username => {
-            const userNotifications = users[username].notifications || [];
+            let userNotifications = users[username].notifications || [];
+            
+            // --- LÉČIVÁ NÁPLAST PRO ADMINA ---
+            // Pokud má uživatel stará rozbitá data, opravíme mu je na pole
+            if (!Array.isArray(userNotifications)) {
+                userNotifications = Object.values(userNotifications);
+            }
+
             userNotifications.unshift({ ...payload, read: false });
             updates[`users/${username}/notifications`] = userNotifications;
         });
 
+        // Odeslání všech opravených dat naráz
         db.ref().update(updates).then(() => {
-            if (currentUser === 'admin' || currentUser === 'Dan real') {
+            if (currentUser === 'admin' || currentUser === 'Dan_admin' || currentUser === 'developer') {
                 addLocalNotification('Odesláno všem: ' + payload.text);
             }
             alert('Oznámení odesláno všem uživatelům.');
             renderNotifications();
+        }).catch(error => {
+            console.error("Chyba při odesílání hromadné zprávy:", error);
+            alert("Něco se pokazilo, zkontroluj konzoli.");
         });
     });
 }
