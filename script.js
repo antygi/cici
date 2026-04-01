@@ -991,7 +991,7 @@ function startStudy(resumeSession = null) {
     // --- C) START NEPRŮSTŘELNÉHO INTERVALU S UKLÁDÁNÍM ---
     studyInterval = setInterval(() => {
         if (isPaused) {
-            lastTickTime = Date.now();
+            lastTickTime = getTrueTime();
             return;
         }
 
@@ -1051,6 +1051,18 @@ function togglePause() {
     } else {
         btn.innerText = "⏸ Pauza";
         btn.style.backgroundColor = "#f0ad4e"; // Oranžová zpět
+        
+        // Zabráníme "skoku" v čase, když se hráč po pauze vrátí
+        lastTickTime = getTrueTime(); 
+    }
+
+    // --- NOVÉ: Okamžitý zápis stavu pauzy do paměti mobilu ---
+    const savedSession = localStorage.getItem('studywithcici_activesession');
+    if (savedSession) {
+        const parsedSession = JSON.parse(savedSession);
+        parsedSession.isPaused = isPaused;
+        parsedSession.lastTickTime = lastTickTime;
+        localStorage.setItem('studywithcici_activesession', JSON.stringify(parsedSession));
     }
 }
 
