@@ -1931,7 +1931,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 // iOS: Nemá automatickou událost, musíme kontrolovat ručně při načtení
 window.addEventListener('load', () => {
-    if (isIos() && !isStandalone()
+    if (isIos() && !isStandalone()) { 
         pwaInstallOverlay.classList.remove('hidden');
     }
 });
