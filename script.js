@@ -1926,16 +1926,12 @@ function isStandalone() {
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    
-    // Ukážeme okno jen pokud ho uživatel v této relaci ještě nepřeskočil
-    if (!sessionStorage.getItem('studywithcici_pwa_skip')) {
-        pwaInstallOverlay.classList.remove('hidden');
-    }
+    pwaInstallOverlay.classList.remove('hidden');
 });
 
 // iOS: Nemá automatickou událost, musíme kontrolovat ručně při načtení
 window.addEventListener('load', () => {
-    if (isIos() && !isStandalone() && !sessionStorage.getItem('studywithcici_pwa_skip')) {
+    if (isIos() && !isStandalone()
         pwaInstallOverlay.classList.remove('hidden');
     }
 });
@@ -1960,8 +1956,6 @@ if (btnInstallPwa) {
 if (btnSkipInstall) {
     btnSkipInstall.addEventListener('click', () => {
         pwaInstallOverlay.classList.add('hidden');
-        // Zapamatujeme si to do paměti, která se vymaže až při zavření záložky
-        sessionStorage.setItem('studywithcici_pwa_skip', 'true');
     });
 }
 
