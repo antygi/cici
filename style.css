@@ -1470,3 +1470,78 @@ body {
     display: inline-block; /* Nutné pro transformaci (zvětšení) */
 }
 
+
+/* ==========================================================================
+   PWA INSTALAČNÍ STĚNA (INSTALL WALL)
+   ========================================================================== */
+#pwa-install-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(3, 3, 3, 0.3); /* Tmavé herní pozadí */
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px); /* Jemné rozmazání hry v pozadí */
+}
+
+.modal-install {
+    background: #fff;
+    padding: clamp(20px, 4vh, 40px);
+    border-radius: 15px;
+    border: 4px solid #000;
+    text-align: center;
+    width: clamp(300px, 80vw, 500px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-icon img {
+    width: clamp(60px, 15vw, 100px);
+    margin-bottom: 20px;
+    border-radius: 15px;
+    border: 3px solid #000;
+}
+
+.modal-install h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: clamp(24px, 4vw, 36px);
+    color: #333;
+}
+
+.modal-install p {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.5;
+    font-size: clamp(14px, 2vw, 18px);
+}
+
+.btn-text {
+    background: none;
+    border: none;
+    color: #777;
+    margin-top: 20px;
+    font-size: clamp(12px, 2vw, 16px);
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+    font-weight: bold;
+    transition: color 0.2s;
+}
+
+.btn-text:hover {
+    color: #333;
+}
+
+/* 🌟 MAGIE: Skryje okno natvrdo, pokud už aplikace běží jako samostatná hra */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+    #pwa-install-overlay {
+        display: none !important;
+    }
+}

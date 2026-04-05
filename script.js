@@ -1899,3 +1899,74 @@ if ('serviceWorker' in navigator) {
         });
     });
 }
+
+
+// ============================================================================
+// PWA INSTALL WALL LOGIKA
+// ============================================================================
+let deferredPrompt;
+const pwaInstallOverlay = document.getElementById('pwa-install-overlay');
+const btnInstallPwa = document.getElementById('btn-install-pwa');
+const btnSkipInstall = document.getElementById('btn-skip-install');
+
+// Detekce iOS
+function isIos() {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent);
+}
+
+// Detekce, jestli už apka běží odděleně od prohlížeče
+function isStandalone() {
+    return (window.matchMedia('(display-mode: standalone)').matches) || 
+           (window.matchMedia('(display-mode: fullscreen)').matches) || 
+           (window.navigator.standalone === true);
+}
+
+// Android / Chrome: Zachytíme výzvu k instalaci
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Ukážeme okno jen pokud ho uživatel v této relaci ještě nepřeskočil
+    if (!sessionStorage.getItem('studywithcici_pwa_skip')) {
+        pwaInstallOverlay.classList.remove('hidden');
+    }
+});
+
+// iOS: Nemá automatickou událost, musíme kontrolovat ručně při načtení
+window.addEventListener('load', () => {
+    if (isIos() && !isStandalone() && !sessionStorage.getItem('studywithcici_pwa_skip')) {
+        pwaInstallOverlay.classList.remove('hidden');
+    }
+});
+
+// Kliknutí na "Nainstalovat"
+if (btnInstallPwa) {
+    btnInstallPwa.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // Android: Vyvolání nativního okna
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            pwaInstallOverlay.classList.add('hidden');
+        } else if (isIos()) {
+            // iOS: Manuální návod
+            alert("Pro instalaci na iPhone/iPad:\n\n1. Klikni dole (nebo nahoře) v Safari na ikonu sdílení (čtvereček se šipkou).\n2. Vyber možnost 'Přidat na plochu'.");
+        }
+    });
+}
+
+// Kliknutí na "Přeskočit"
+if (btnSkipInstall) {
+    btnSkipInstall.addEventListener('click', () => {
+        pwaInstallOverlay.classList.add('hidden');
+        // Zapamatujeme si to do paměti, která se vymaže až při zavření záložky
+        sessionStorage.setItem('studywithcici_pwa_skip', 'true');
+    });
+}
+
+// Pokud uživatel aplikaci úspěšně nainstaluje, okno hned schováme
+window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    if(pwaInstallOverlay) pwaInstallOverlay.classList.add('hidden');
+});

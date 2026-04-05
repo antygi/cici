@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=46">
+    <link rel="stylesheet" href="style.css?v=47">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -227,9 +227,23 @@
                 </div>
             </div>
         </div>
+        
+        <div id="pwa-install-overlay" class="hidden">
+            <div class="modal-install">
+                <div class="modal-icon"><img src="ikona-512.png" alt="ikona"></div>
+                <h2>Nainstaluj si StudyWČiči!</h2>
+                <p>StudyWČiči je progresivní webová aplikace, díky tomu ji můžu provozovat zcela zdarma, instaluje se proto ale z webového prohlížeče.</p>
+                
+                <button id="btn-install-pwa" class="action-button" style="width: 100%; font-size: clamp(16px, 2vw, 24px); padding: 15px;">
+                    Nainstalovat hru
+                </button>
+
+                <button id="btn-skip-install" class="btn-text">Pokračovat ve webové verzi</button>
+            </div>
+        </div>
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=46"></script>
+    <script src="script.js?v=47"></script>
 </body>
 </html>
