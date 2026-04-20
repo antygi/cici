@@ -177,14 +177,13 @@ body {
 
 .modal-content {
     background: #fff;
-    padding: clamp(10px, 2vh, 30px); /* Trochu menší padding pro záchranu místa */
+    padding: clamp(15px, 3vh, 30px); /* Responzivní padding */
     border-radius: 15px;
     border: 4px solid #000;
     position: relative;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    max-width: 95vw; 
+    max-width: 95vw; /* Zabránění přetečení přes okraje na mobilu */
     max-height: 95vh;
-    overflow-y: auto; /* 🌟 TOTO ZACHRÁNÍ VĚC: Povolí scrollování uvnitř okna */
 }
 
 /* Učící okno */
@@ -607,14 +606,14 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(5px, 1vh, 15px); /* Zmenšil jsem mezery mezi políčky z 2vh na flexibilní */
+    gap: 2vh;
     width: clamp(300px, 80vw, 500px);
     text-align: center;
 }
 
 .login-content h2 {
-    font-size: clamp(20px, 4vw, 40px);
-    margin-bottom: 0; /* Odstranil jsem zbytečný margin pod nadpisem */
+    font-size: clamp(24px, 4vw, 40px);
+    margin-bottom: 1vh;
 }
 
 #username-input {
@@ -1448,100 +1447,5 @@ body {
         top: 5px;
         left: 10px;
         font-size: 20px;
-    }
-}
-
-/* Zvýraznění tagnutých uživatelů v komentářích */
-.tagged-user {
-    color: #1f3d7a;
-    font-weight: bold;
-    background-color: #e6f0ff;
-    padding: 1px 5px;
-    border-radius: 4px;
-    border: 1px solid #cce0ff;
-    transition: all 0.2s; /* Plynulý přechod */
-}
-
-/* Hover efekt, aby bylo jasné, že je to odkaz */
-.tagged-user.clickable-name:hover {
-    background-color: #cce0ff;
-    text-decoration: underline;
-    transform: scale(1.05);
-    display: inline-block; /* Nutné pro transformaci (zvětšení) */
-}
-
-
-/* ==========================================================================
-   PWA INSTALAČNÍ STĚNA (INSTALL WALL)
-   ========================================================================== */
-#pwa-install-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(3, 3, 3, 0.3); /* Tmavé herní pozadí */
-    z-index: 9999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    backdrop-filter: blur(5px); /* Jemné rozmazání hry v pozadí */
-}
-
-.modal-install {
-    background: #fff;
-    padding: clamp(20px, 4vh, 40px);
-    border-radius: 15px;
-    border: 4px solid #000;
-    text-align: center;
-    width: clamp(300px, 80vw, 500px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.modal-icon img {
-    width: clamp(60px, 15vw, 100px);
-    margin-bottom: 20px;
-    border-radius: 15px;
-    border: 3px solid #000;
-}
-
-.modal-install h2 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-size: clamp(24px, 4vw, 36px);
-    color: #333;
-}
-
-.modal-install p {
-    color: #666;
-    margin-bottom: 25px;
-    line-height: 1.5;
-    font-size: clamp(14px, 2vw, 18px);
-}
-
-.btn-text {
-    background: none;
-    border: none;
-    color: #777;
-    margin-top: 20px;
-    font-size: clamp(12px, 2vw, 16px);
-    cursor: pointer;
-    text-decoration: underline;
-    font-family: inherit;
-    font-weight: bold;
-    transition: color 0.2s;
-}
-
-.btn-text:hover {
-    color: #333;
-}
-
-/* 🌟 MAGIE: Skryje okno natvrdo, pokud už aplikace běží jako samostatná hra */
-@media (display-mode: standalone), (display-mode: fullscreen) {
-    #pwa-install-overlay {
-        display: none !important;
     }
 }

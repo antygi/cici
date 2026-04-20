@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=47">
+    <link rel="stylesheet" href="style.css?v=42">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -15,12 +15,6 @@
         <div id="login-modal" class="modal">
             <div class="modal-content login-content">
                 <h2>Studuj s Čiči!</h2>
-                
-                <div style="background-color: #fff3cd; border: 2px solid #ffeeba; border-radius: 8px; padding: clamp(5px, 1vh, 10px); margin-bottom: 5px; font-size: clamp(10px, 1.5vw, 14px); color: #856404; text-align: left; line-height: 1.2;">
-                    <strong>⚠️ Důležité:</strong> Jména už nesmí mít mezery!<br>
-                    Všem hráčům <strong>byla mezera nahrazena podtržítkem</strong> <em>(např. "Dan real" je teď "Dan_real")</em>. Hesla zůstala stejná.<br>
-                    Jestli chceš jiný jméno, napiš mi.
-                </div>
                 <input type="text" id="username-input" placeholder="Tvoje jméno" autocomplete="off">
                 <input type="password" id="password-input" placeholder="Tvoje heslo">
                 
@@ -118,7 +112,7 @@
             <p class="total-time-label">Celkově už se učíš:</p>
             <p id="total-time-display" class="total-time-value">0 hodin 0 minut a 0 sekund</p>
             
-            <p class="version">v0.1.7 (Tagy v komentech)</p>
+            <p class="version">v0.1.6 (Týdenní turnaj)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -227,23 +221,9 @@
                 </div>
             </div>
         </div>
-        
-        <div id="pwa-install-overlay" class="hidden">
-            <div class="modal-install">
-                <div class="modal-icon"><img src="ikona-512.png" alt="ikona"></div>
-                <h2>Nainstaluj si StudyWČiči!</h2>
-                <p>StudyWČiči je progresivní webová aplikace, díky tomu ji můžu provozovat zcela zdarma, instaluje se proto ale z webového prohlížeče.</p>
-                
-                <button id="btn-install-pwa" class="action-button" style="width: 100%; font-size: clamp(16px, 2vw, 24px); padding: 15px;">
-                    Nainstalovat hru
-                </button>
-
-                <button id="btn-skip-install" class="btn-text">Pokračovat ve webové verzi</button>
-            </div>
-        </div>
 
     </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=47"></script>
+    <script src="script.js?v=42"></script>
 </body>
 </html>
