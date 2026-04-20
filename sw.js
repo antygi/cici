@@ -26,7 +26,7 @@ const ASSETS_TO_CACHE = [
     './assets/notification_button.png?v=23',
     './assets/like_full.png?v=21',
     './assets/like_blank.png?v=21',
-    './assets/player_shop_button',
+    './assets/player_shop_button.png',
 
 
     // Skiny
