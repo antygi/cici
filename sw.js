@@ -1,7 +1,7 @@
 // sw.js
 
 // Zvýšení verze donutí prohlížeč smazat starou cache a stáhnout vše znovu
-const CACHE_NAME = 'studywithcici-pwa-v35';
+const CACHE_NAME = 'studywithcici-pwa-v40';
 
 // Kompletní seznam všeho, co aplikace potřebuje k offline běhu
 const ASSETS_TO_CACHE = [
