@@ -12,6 +12,7 @@ const firebaseConfig = {
 // Spustíme Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const storage = firebase.storage();
 
 
 // --- DATABÁZE ITEMŮ ---
@@ -71,6 +72,23 @@ const ITEMS = [
 let currentUser = null; 
 let allUsers = {};      
 let preservedFeedScroll = 0;
+// --- OCHRANA PROTI POSUNU ČASU ---
+let serverTimeOffset = 0;
+
+// Firebase nám sem neustále posílá odchylku mezi časem na mobilu a časem na serveru
+db.ref('.info/serverTimeOffset').on('value', function(snapshot) {
+    serverTimeOffset = snapshot.val() || 0;
+});
+
+// Získání přesného serverového času v milisekundách
+function getTrueTime() {
+    return Date.now() + serverTimeOffset;
+}
+
+// Získání přesného serverového data
+function getTrueDate() {
+    return new Date(getTrueTime());
+}
 
 
 // Tohle je šablona pro nového hráče
@@ -98,8 +116,9 @@ const DEFAULT_STATE = {
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE)); 
 
 // --- POMOCNÁ FUNKCE PRO ZJIŠTĚNÍ AKTUÁLNÍHO TÝDNE ---
-function getCurrentWeekString() {
-    const d = new Date();
+// Nyní jako výchozí bere skutečný serverový čas
+function getCurrentWeekString(dateInput = getTrueDate()) { 
+    const d = new Date(dateInput);
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
     const week1 = new Date(d.getFullYear(), 0, 4);
@@ -112,7 +131,7 @@ function checkDateReset() {
     // Bezpečnostní pojistka pro staré účty, aby jim to nespadlo
     if (!state.streaks) state.streaks = { red: 0, gold: 0, diamond: 0 };
     if (!state.awarded_today) state.awarded_today = { red: false, gold: false, diamond: false };
-    if (!state.last_date) state.last_date = new Date().toDateString();
+    if (!state.last_date) state.last_date = getTrueDate().toDateString();
     if (!state.daily_time) state.daily_time = 0;
     if (!state.active_streak) state.active_streak = 'red';
 
@@ -172,6 +191,40 @@ function init() {
     }
 }
 
+async function premenovatHrace(stareJmeno, noveJmeno) {
+    if (!stareJmeno || !noveJmeno || noveJmeno.includes(' ')) {
+        console.error("Špatně zadaná jména! Nové jméno nesmí mít mezeru."); 
+        return;
+    }
+    
+    // 1. Zkopírujeme data starého hráče
+    const snap = await db.ref('users/' + stareJmeno).once('value');
+    if (!snap.exists()) {
+        console.error("Hráč '" + stareJmeno + "' v databázi neexistuje!"); 
+        return;
+    }
+    const data = snap.val();
+    
+    // 2. Připravíme obří update
+    let updates = {};
+    updates['users/' + noveJmeno] = data; // Vytvoříme nového
+    updates['users/' + stareJmeno] = null; // Smažeme starého
+    
+    // 3. Projdeme všechny ostatní hráče a opravíme jim seznam přátel
+    const allUsersSnap = await db.ref('users').once('value');
+    const allUsers = allUsersSnap.val();
+    
+    for (let user in allUsers) {
+        if (allUsers[user].friends && allUsers[user].friends[stareJmeno]) {
+            updates['users/' + user + '/friends/' + stareJmeno] = null; // Odstraníme staré jméno z přátel
+            updates['users/' + user + '/friends/' + noveJmeno] = true;  // Přidáme nové jméno
+        }
+    }
+    
+    // 4. Odešleme to do Firebase naráz
+    await db.ref().update(updates);
+    console.log(`✅ HOTOVO: Hráč "${stareJmeno}" byl úspěšně přejmenován na "${noveJmeno}". Všichni jeho přátelé byli aktualizováni.`);
+}
 
 // --- DATABÁZE A PŘIHLAŠOVÁNÍ (FIREBASE CLOUD) ---
 function saveData(keysToSave = null) {
@@ -256,11 +309,28 @@ function registerUser() {
         return;
     }
 
+    // --- NOVÁ OCHRANA PROTI MEZERÁM A DÉLCE JMÉNA ---
+    if (username.includes(' ')) {
+        alert("Uživatelské jméno nesmí obsahovat mezery! Použij například podtržítko (např. Jan_Novak).");
+        return;
+    }
+
+    if (username.length > 20) {
+        alert("Uživatelské jméno je příliš dlouhé! Maximální povolená délka je 20 znaků.");
+        return;
+    }
+    // -----------------------------------------------
+
+    const loginBtn = document.getElementById('login-btn');
+    loginBtn.innerText = "Zakládám účet...";
+    loginBtn.disabled = true;
+
     db.ref('users/' + username).once('value')
         .then((snapshot) => {
             if (snapshot.exists()) {
                 // Jméno už někdo má
                 alert("Toto jméno už je zabrané, vyber si prosím jiné!");
+                resetLoginBtn();
             } else {
                 // ZAKLÁDÁME NOVÝ ÚČET
                 currentUser = username;
@@ -274,6 +344,7 @@ function registerUser() {
         })
         .catch((error) => {
             alert("Chyba při registraci: " + error.message);
+            resetLoginBtn();
         });
 }
 
@@ -372,6 +443,13 @@ function updateHUD() {
 
 function updateNotificationBadge() {
     if (!state.notifications) state.notifications = [];
+    
+    // --- LÉČIVÁ NÁPLAST ---
+    // Pokud Firebase vrátil objekt místo pole, převedeme ho zpátky
+    if (!Array.isArray(state.notifications)) {
+        state.notifications = Object.values(state.notifications);
+    }
+    
     const unread = state.notifications.filter(n => !n.read).length;
     const badge = document.getElementById('notification-badge');
     if (!badge) return;
@@ -399,7 +477,13 @@ function sendNotificationToUser(username, message) {
     if (!username || !message) return;
 
     db.ref('users/' + username + '/notifications').once('value').then(snapshot => {
-        const notifications = snapshot.val() || [];
+        let notifications = snapshot.val() || [];
+        
+        // --- LÉČIVÁ NÁPLAST ---
+        if (!Array.isArray(notifications)) {
+            notifications = Object.values(notifications);
+        }
+
         notifications.unshift({
             id: Date.now(),
             text: message,
@@ -420,7 +504,15 @@ function sendNotificationToUser(username, message) {
 function renderNotifications() {
     const list = document.getElementById('notifications-list');
     list.innerHTML = '';
-    if (!state.notifications || state.notifications.length === 0) {
+    
+    if (!state.notifications) state.notifications = [];
+    
+    // --- LÉČIVÁ NÁPLAST ---
+    if (!Array.isArray(state.notifications)) {
+        state.notifications = Object.values(state.notifications);
+    }
+
+    if (state.notifications.length === 0) {
         list.innerHTML = '<p style="text-align:center; opacity: 0.8;">Žádná oznámení.</p>';
         return;
     }
@@ -605,6 +697,7 @@ function showLeaderboard(type = 'weekly') {
 }
 
 // --- GLOBÁLNÍ VYHODNOCENÍ TÝDNE (Pouze pro prvního hráče v novém týdnu) ---
+// --- GLOBÁLNÍ VYHODNOCENÍ TÝDNE (Pouze pro prvního hráče v novém týdnu) ---
 function processWeeklyLeaderboard() {
     const thisWeek = getCurrentWeekString();
 
@@ -658,9 +751,13 @@ function processWeeklyLeaderboard() {
                         updates[`users/${username}/weekly_time`] = 0;
                         updates[`users/${username}/current_week`] = thisWeek;
                         
-                        // Vygenerujeme unikátní ID pro novou notifikaci v databázi
-                        let newNotifId = db.ref().child(`users/${username}/notifications`).push().key;
-                        updates[`users/${username}/notifications/${newNotifId}`] = notifObj;
+                        // --- OPRAVA: Místo vytváření nového ID přidáme notifikaci lokálně do pole ---
+                        let userNotifs = users[username].notifications || [];
+                        if (!Array.isArray(userNotifs)) {
+                            userNotifs = Object.values(userNotifs);
+                        }
+                        userNotifs.unshift(notifObj);
+                        updates[`users/${username}/notifications`] = userNotifs;
                     }
                 } else {
                     // B) Pokud nebyl žádný vítěz (všichni na to celý týden kašlali)
@@ -842,7 +939,7 @@ function startStudy(resumeSession = null) {
         studyMode = document.getElementById('study-mode').value;
         studySeconds = 0;
         isPaused = false;
-        lastTickTime = Date.now();
+        lastTickTime = getTrueTime();
         
         if (studyMode === 'pomodoro') {
             const lInput = parseInt(document.getElementById('learn-time-input').value) || 25;
@@ -895,11 +992,11 @@ function startStudy(resumeSession = null) {
     // --- C) START NEPRŮSTŘELNÉHO INTERVALU S UKLÁDÁNÍM ---
     studyInterval = setInterval(() => {
         if (isPaused) {
-            lastTickTime = Date.now();
+            lastTickTime = getTrueTime();
             return;
         }
 
-        let now = Date.now();
+        let now = getTrueTime();
         let deltaSeconds = Math.floor((now - lastTickTime) / 1000); 
 
         if (deltaSeconds >= 1) {
@@ -955,6 +1052,18 @@ function togglePause() {
     } else {
         btn.innerText = "⏸ Pauza";
         btn.style.backgroundColor = "#f0ad4e"; // Oranžová zpět
+        
+        // Zabráníme "skoku" v čase, když se hráč po pauze vrátí
+        lastTickTime = getTrueTime(); 
+    }
+
+    // --- NOVÉ: Okamžitý zápis stavu pauzy do paměti mobilu ---
+    const savedSession = localStorage.getItem('studywithcici_activesession');
+    if (savedSession) {
+        const parsedSession = JSON.parse(savedSession);
+        parsedSession.isPaused = isPaused;
+        parsedSession.lastTickTime = lastTickTime;
+        localStorage.setItem('studywithcici_activesession', JSON.stringify(parsedSession));
     }
 }
 
@@ -994,7 +1103,7 @@ function stopStudy() {
             const bTime = document.getElementById('break-time-input').value;
             
             pendingPostData = {
-                timestamp: Date.now(),
+                timestamp: getTrueTime(),
                 totalSeconds: studySeconds,
                 method: mode,
                 learnInput: mode === 'pomodoro' ? lTime : null,
@@ -1164,7 +1273,7 @@ function savePost() {
         ...pendingPostData,
         title: title,
         description: desc,
-        dateString: new Date().toLocaleString('cs-CZ'),
+        dateString: getTrueDate().toLocaleString('cs-CZ'),
         likes: {},
         comments: []
     };
@@ -1172,23 +1281,28 @@ function savePost() {
     if (!state.posts) state.posts = {};
     state.posts[newPost.timestamp] = newPost;
     
-    // Nyní přidělíme odložené coiny a čas
+    const actualWeek = getCurrentWeekString();
+    if (state.current_week !== actualWeek) {
+        state.weekly_time = 0;
+        state.current_week = actualWeek;
+    }
+
     state.total_cas += pendingPostData.totalSeconds;
     state.coins += pendingPostData.earnedCoins;
     state.weekly_time += pendingPostData.totalSeconds;
     
-    saveData(['posts', 'total_cas', 'coins', 'weekly_time', 'daily_time', 'streaks', 'awarded_today', 'last_date']);
-    updateHUD();
-    
-    document.getElementById('post-create-modal').classList.add('hidden');
-    
-    // Nakonec ukážeme tu odměnu
-    if (pendingPostData.earnedCoins > 0) {
-        setTimeout(() => alert(`Vydělal sis ${pendingPostData.earnedCoins} grošů a tvůj post byl uložen!`), 100);
-    } else {
-        setTimeout(() => alert('Učil ses moc krátkou dobu, ale post jsme ti uložili.'), 100);
-    }
-    pendingPostData = null;
+    db.ref('users/' + currentUser + '/posts/' + newPost.timestamp).set(newPost).then(() => {
+        saveData(['total_cas', 'coins', 'weekly_time', 'current_week', 'daily_time', 'streaks', 'awarded_today', 'last_date']);
+        updateHUD();
+        document.getElementById('post-create-modal').classList.add('hidden');
+        
+        if (pendingPostData.earnedCoins > 0) {
+            setTimeout(() => alert(`Vydělal sis ${pendingPostData.earnedCoins} grošů a tvůj post byl uložen!`), 100);
+        } else {
+            setTimeout(() => alert('Učil ses moc krátkou dobu, ale post jsme ti uložili.'), 100);
+        }
+        pendingPostData = null;
+    });
 }
 
 function showFeed(type, username = null) {
@@ -1201,14 +1315,45 @@ function showFeed(type, username = null) {
     document.getElementById('feed-modal').classList.remove('hidden');
 
     if (type === 'profile') {
-        title.innerText = `Studijní deník: ${username}`;
         db.ref('users/' + username).once('value').then(snapshot => {
             const data = snapshot.val();
-            if (data && data.posts) {
-                renderPosts(Object.values(data.posts), list, username);
-            } else {
-                list.innerHTML = '<p style="text-align:center; margin-top:20px;">Zatím žádné záznamy o učení.</p>';
-            }
+            if (!data) return;
+
+            const equipped = data.equipped_items || {};
+            const getImage = (itemName, isSkin = false) => {
+                if (!itemName) return isSkin ? 'assets/skin_default.png' : '';
+                const foundItem = ITEMS.find(i => i.nazev === itemName);
+                return foundItem ? foundItem.image : (isSkin ? 'assets/skin_default.png' : '');
+            };
+
+            const activeStreak = data.active_streak || 'red';
+            const streakCount = data.streaks ? data.streaks[activeStreak] || 0 : 0;
+            const icons = { red: '🔥', gold: '⭐', diamond: '💎' };
+
+            title.innerHTML = `
+                <div class="profile-header-container">
+                    <div class="profile-avatar-big">
+                        <img src="${getImage(equipped.skin, true)}" class="p-layer" style="z-index:1;">
+                        ${equipped.triko ? `<img src="${getImage(equipped.triko)}" class="p-layer" style="z-index:2;">` : ''}
+                        ${equipped.maska ? `<img src="${getImage(equipped.maska)}" class="p-layer" style="z-index:3;">` : ''}
+                        ${equipped.obojek ? `<img src="${getImage(equipped.obojek)}" class="p-layer" style="z-index:4;">` : ''}
+                        ${equipped.cepice ? `<img src="${getImage(equipped.cepice)}" class="p-layer" style="z-index:5;">` : ''}
+                    </div>
+                    <div class="profile-stats-info">
+                        <h2 style="margin-bottom: 5px; font-size: 28px;">${username}</h2>
+                        <p>🏆 Trofeje: <b>${data.trophies || 0}</b></p>
+                        <p>Streak: <b>${icons[activeStreak]} ${streakCount}</b></p> 
+                        <p>⏱ Odstudováno: <b>${formatTime(data.total_cas || 0)}</b></p>
+                    </div>
+                </div>
+                <div class="profile-tabs">
+                    <button id="tab-posts" class="tab-btn active" onclick="switchProfileTab('posts', '${username}')">Příspěvky</button>
+                    <button id="tab-market" class="tab-btn" onclick="switchProfileTab('market', '${username}')">Burza</button>
+                </div>
+            `;
+            
+            list.innerHTML = '<div id="profile-dynamic-content"></div>';
+            switchProfileTab('posts', username);
         });
     } else if (type === 'friends') {
         title.innerText = "Novinky parťáků";
@@ -1221,7 +1366,7 @@ function showFeed(type, username = null) {
             return db.ref('users/' + name + '/posts').once('value').then(snap => {
                 if (snap.exists()) {
                     const posts = Object.values(snap.val());
-                    posts.forEach(p => p.author = name); // Přidáme k postu jméno kámoše
+                    posts.forEach(p => p.author = name); 
                     return posts;
                 }
                 return [];
@@ -1231,15 +1376,583 @@ function showFeed(type, username = null) {
         Promise.all(fetchPromises).then(results => {
             let allPosts = [];
             results.forEach(arr => allPosts = allPosts.concat(arr));
-            allPosts.sort((a, b) => b.timestamp - a.timestamp); // Nejnovější nahoře
+            allPosts.sort((a, b) => b.timestamp - a.timestamp); 
             const top10 = allPosts.slice(0, 10);
             renderPosts(top10, list, null);
         });
     }
 }
 
+function switchProfileTab(tab, username) {
+    document.getElementById('tab-posts').classList.toggle('active', tab === 'posts');
+    document.getElementById('tab-market').classList.toggle('active', tab === 'market');
+    
+    const libTab = document.getElementById('tab-library');
+    if (libTab) libTab.classList.toggle('active', tab === 'library');
+    
+    const contentDiv = document.getElementById('profile-dynamic-content');
+    contentDiv.innerHTML = '<p style="text-align:center;">Načítám...</p>';
+
+    if (tab === 'posts') {
+        db.ref('users/' + username + '/posts').once('value').then(snap => {
+            if (snap.exists()) {
+                renderPosts(Object.values(snap.val()), contentDiv, username);
+            } else {
+                contentDiv.innerHTML = '<p style="text-align:center;">Zatím žádné záznamy o učení.</p>';
+            }
+        });
+    } else if (tab === 'market') {
+        renderProfileMarket(username, contentDiv);
+    } else if (tab === 'library') {
+        renderLibrary(contentDiv);
+    }
+}
+
+function renderProfileMarket(username, container) {
+    db.ref('users/' + username + '/market').once('value').then(snap => {
+        const items = snap.val() || {};
+        const isMyProfile = username === currentUser;
+        let html = '';
+        
+        if (isMyProfile) {
+            const count = Object.keys(items).length;
+            if (count < 5) html += `<button onclick="openUploadModal()" class="action-button" style="width:100%; margin-bottom: 15px; font-size: 16px; padding: 10px;">+ Přidat nový materiál (Máš ${count}/5)</button>`;
+            else html += `<p style="text-align:center; color:red; font-weight:bold;">Dosáhl jsi limitu 5 materiálů.</p>`;
+        }
+
+        if (Object.keys(items).length === 0) {
+            html += '<p style="text-align:center;">Uživatel zatím nic neprodává.</p>';
+        } else {
+            html += '<div class="market-grid">';
+            for (let id in items) {
+                const item = items[id];
+                html += `
+                    <div class="market-item" onclick="openMaterialDetail('${username}', '${id}')" style="cursor: pointer;">
+                        <div class="market-icon">📄</div>
+                        <h4 style="margin:5px 0;">${item.name}</h4>
+                        <p style="color:#666; font-size: 12px; margin-bottom:10px;">Cena: <b>${item.price} 💰</b></p>
+                        <button class="buy-btn">Zobrazit detail</button>
+                    </div>
+                `;
+            }
+            html += '</div>';
+        }
+        container.innerHTML = html;
+    });
+}
+
+function renderLibrary(container) {
+    const boughtFiles = state.boughtItems || {};
+    
+    db.ref('users/' + currentUser + '/market').once('value').then(snap => {
+        const myUploads = snap.val() || {};
+        const allMyFiles = { ...boughtFiles, ...myUploads };
+
+        if (Object.keys(allMyFiles).length === 0) {
+            container.innerHTML = '<p style="text-align:center;">Zatím nemáš v knihovně žádné materiály.</p>';
+            return;
+        }
+
+        let html = '<div class="market-grid">';
+        for (let id in allMyFiles) {
+            const item = allMyFiles[id];
+            const seller = item.seller || currentUser; 
+            html += `
+                <div class="market-item" onclick="openMaterialDetail('${seller}', '${id}')" style="cursor: pointer;">
+                    <div class="market-icon">📚</div>
+                    <h4 style="margin:5px 0;">${item.name}</h4>
+                    <p style="color:#666; font-size: 11px; margin-bottom:10px;">Vlastněno</p>
+                    <button class="buy-btn" style="background:#2196F3; color:white;">Rozkliknout</button>
+                </div>
+            `;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    });
+}
+
+function buyMaterial(sellerName, itemId, price, fileUrl, fileName) {
+    if (state.boughtItems && state.boughtItems[itemId]) {
+        return window.open(fileUrl, '_blank');
+    }
+
+    if (state.coins < price) {
+        return alert("Nemáš dostatek Catcoinů!");
+    }
+
+    confirmAction(`Chceš si koupit '${fileName}' za ${price} 💰?`, async (agreed) => {
+        if (agreed) {
+            state.coins -= price;
+            
+            if (!state.boughtItems) state.boughtItems = {};
+            state.boughtItems[itemId] = {
+                name: fileName,
+                url: fileUrl,
+                boughtAt: Date.now(),
+                seller: sellerName
+            };
+
+            saveData(['coins', 'boughtItems']);
+            updateHUD();
+
+            db.ref(`users/${sellerName}/coins`).transaction(currentCoins => (currentCoins || 0) + price);
+            sendNotificationToUser(sellerName, `Hráč ${currentUser} si koupil tvůj materiál '${fileName}'! Získáváš ${price} 💰.`);
+
+            alert("Nákup úspěšný! Materiál byl přidán do tvé knihovny.");
+            window.open(fileUrl, '_blank');
+            
+            // --- TENTO ŘÁDEK CHYBĚL (Zavře okno s detailem) ---
+            document.getElementById('material-detail-modal').classList.add('hidden');
+            
+            switchProfileTab('market', sellerName);
+        }
+    });
+}
+
+function deleteMaterial(itemId) {
+    confirmAction("Opravdu chceš tento materiál z burzy smazat?", (agreed) => {
+        if (agreed) {
+            db.ref(`users/${currentUser}/market/${itemId}`).remove().then(() => {
+                switchProfileTab('market', currentUser);
+            });
+        }
+    });
+}
+
+function openUploadModal() {
+    document.getElementById('upload-modal').classList.remove('hidden');
+    document.getElementById('material-name').value = '';
+    document.getElementById('material-desc').value = ''; 
+    document.getElementById('material-price').value = '';
+    document.getElementById('material-file').value = '';
+}
+
+async function submitUpload() {
+    const name = document.getElementById('material-name').value.trim();
+    const desc = document.getElementById('material-desc').value.trim(); 
+    const price = parseInt(document.getElementById('material-price').value);
+    const fileInput = document.getElementById('material-file');
+    const file = fileInput.files[0];
+
+    if (!name || isNaN(price) || !file) return alert("Vyplň název, cenu i soubor!");
+    if (price < 0) return alert("Cena nesmí být záporná!");
+
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) return alert("Soubor je moc velký! Maximální velikost je 5 MB.");
+
+    const btn = document.getElementById('submit-upload-btn');
+    btn.innerText = "Nahrávám...";
+    btn.disabled = true;
+
+    try {
+        const fileId = Date.now();
+        const storageRef = storage.ref(`market/${currentUser}/${fileId}_${file.name}`);
+        
+        await storageRef.put(file);
+        const downloadUrl = await storageRef.getDownloadURL();
+
+        await db.ref(`users/${currentUser}/market/${fileId}`).set({
+            name: name,
+            description: desc,
+            price: price,
+            url: downloadUrl,
+            uploadedAt: fileId,
+            reviews: {} 
+        });
+
+        alert("Materiál byl úspěšně přidán na burzu!");
+        document.getElementById('upload-modal').classList.add('hidden');
+        switchProfileTab('market', currentUser);
+    } catch (error) {
+        console.error(error);
+        alert("Chyba při nahrávání: " + error.message);
+    } finally {
+        btn.innerText = "Nahrát";
+        btn.disabled = false;
+    }
+}
+
+// ==========================================
+// --- DETAIL MATERIÁLU A RECENZE ---
+// ==========================================
+let currentReviewVote = null;
+let currentReviewSeller = null;
+let currentReviewItemId = null;
+
+function openMaterialDetail(sellerName, itemId) {
+    db.ref(`users/${sellerName}/market/${itemId}`).once('value').then(snap => {
+        let item = snap.val();
+        const isBought = state.boughtItems && state.boughtItems[itemId];
+        const isMyProfile = sellerName === currentUser;
+
+        // POJISTKA: Pokud materiál v marketu neexistuje (autor ho smazal),
+        // ale my ho máme v knihovně, použijeme naše lokální data.
+        if (!item && isBought) {
+            item = {
+                ...state.boughtItems[itemId],
+                description: "⚠️ Tento materiál byl autorem smazán z burzy, ale v tvé knihovně stále zůstává, dokud ho neodstraníš.",
+                price: state.boughtItems[itemId].price || 0,
+                isDeletedByAuthor: true
+            };
+        }
+
+        if (!item) return alert("Tento materiál už neexistuje ani v tvé knihovně.");
+
+        document.getElementById('material-detail-modal').classList.remove('hidden');
+        document.getElementById('md-title').innerText = item.name;
+        document.getElementById('md-author').innerText = `Autor: ${sellerName}`;
+        document.getElementById('md-desc').innerText = item.description || "Autor k tomuto materiálu nenapsal žádný bližší popis.";
+
+        // Vykreslení hlasů a recenzí (pouze pokud materiál reálně existuje u autora)
+        const reviewsContainer = document.getElementById('md-reviews');
+        const addReviewBtn = document.getElementById('md-add-review-btn');
+        
+        if (item.isDeletedByAuthor) {
+            document.getElementById('md-up-count').innerText = "-";
+            document.getElementById('md-down-count').innerText = "-";
+            reviewsContainer.innerHTML = '<p style="color:red; text-align:center; font-style: italic;">Recenze a hodnocení nejsou u smazaného materiálu dostupné.</p>';
+            if(addReviewBtn) addReviewBtn.classList.add('hidden');
+        } else {
+            if(addReviewBtn) addReviewBtn.classList.remove('hidden');
+            let upvotesCount = 0;
+            let downvotesCount = 0;
+            let reviewsHtml = '';
+            const reviews = item.reviews || {};
+
+            if (Object.keys(reviews).length > 0) {
+                for (let authorName in reviews) {
+                    const r = reviews[authorName];
+                    if (r.vote === 'up') upvotesCount++;
+                    if (r.vote === 'down') downvotesCount++;
+                    const voteIcon = r.vote === 'up' ? '👍' : '👎';
+                    reviewsHtml += `
+                        <div class="md-review-item">
+                            <div><span class="md-review-author">${voteIcon} ${authorName}</span> <span class="md-review-date">${r.date}</span></div>
+                            ${r.text ? `<div class="md-review-text" style="margin-top:5px; border-left: 2px solid #ccc; padding-left: 8px;">${r.text}</div>` : ''}
+                        </div>
+                    `;
+                }
+            } else {
+                reviewsHtml = '<p style="color:#888; text-align:center; font-style: italic; padding: 15px 0;">Zatím nikdo materiál nehodnotil.</p>';
+            }
+            document.getElementById('md-up-count').innerText = upvotesCount;
+            document.getElementById('md-down-count').innerText = downvotesCount;
+            reviewsContainer.innerHTML = reviewsHtml;
+            if(addReviewBtn) addReviewBtn.onclick = () => openReviewModal(sellerName, itemId);
+        }
+
+        // Tlačítka akcí
+        const actionContainer = document.getElementById('md-action-container');
+        if (isMyProfile && !item.isDeletedByAuthor) {
+            actionContainer.innerHTML = `
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <button onclick="openEditMaterialModal('${itemId}', '${item.name.replace(/'/g, "\\'")}', '${(item.description || '').replace(/'/g, "\\'").replace(/\n/g, '\\n')}', ${item.price});" class="action-button" style="background:#f0ad4e; color:white; width: 50%; padding: 10px;">✏️ Upravit</button>
+                    <button onclick="deleteMaterial('${itemId}'); document.getElementById('material-detail-modal').classList.add('hidden');" class="action-button" style="background:#ff4d4d; color:white; width: 50%; padding: 10px;">🗑️ Smazat</button>
+                </div>
+            `;
+        } else if (isBought) {
+            actionContainer.innerHTML = `
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <button onclick="window.open('${item.url}', '_blank')" class="action-button" style="background:#4CAF50; color:white; width: 60%; padding: 10px;">📂 Otevřít</button>
+                    <button onclick="removeBoughtMaterial('${itemId}'); document.getElementById('material-detail-modal').classList.add('hidden');" class="action-button" style="background:#ff4d4d; color:white; width: 40%; padding: 10px;">🗑️ Odebrat</button>
+                </div>
+            `;
+        } else {
+            actionContainer.innerHTML = `<button onclick="buyMaterial('${sellerName}', '${itemId}', ${item.price}, '${item.url}', '${item.name}')" class="action-button" style="background:#f7ff6a; width: 100%;">Koupit za ${item.price} 💰</button>`;
+        }
+    });
+}
+
+// --- ODEBRÁNÍ ZAKOUPENÉHO MATERIÁLU Z KNIHOVNY ---
+function removeBoughtMaterial(itemId) {
+    confirmAction("Opravdu chceš tento materiál zahodit? Pokud ho budeš chtít zpět, budeš ho muset znovu koupit!", (agreed) => {
+        if (agreed) {
+            if (state.boughtItems && state.boughtItems[itemId]) {
+                // Odstraníme z lokálního stavu
+                delete state.boughtItems[itemId];
+                
+                // Uložíme do databáze (přepíše uzel boughtItems bez tohoto ID)
+                saveData(['boughtItems']);
+                
+                alert("Materiál byl odstraněn z tvé knihovny.");
+                
+                // Refresh zobrazení knihovny, pokud je otevřená
+                if (!document.getElementById('player-shop-modal').classList.contains('hidden')) {
+                    renderGlobalLibrary();
+                }
+            }
+        }
+    });
+}
+
+function openReviewModal(sellerName, itemId) {
+    if (!currentUser) return alert("Musíš být přihlášený!");
+    
+    const isBought = state.boughtItems && state.boughtItems[itemId];
+    const isMyProfile = sellerName === currentUser;
+    if (!isBought && !isMyProfile) {
+        return alert("Hodnotit můžeš až po zakoupení materiálu!");
+    }
+
+    currentReviewSeller = sellerName;
+    currentReviewItemId = itemId;
+    currentReviewVote = null;
+
+    // Reset vizuálu okna
+    document.getElementById('rev-btn-up').style.background = '#fff';
+    document.getElementById('rev-btn-down').style.background = '#fff';
+    document.getElementById('rev-text').value = '';
+
+    // Zkusíme načíst, jestli už hráč nehodnotil dříve (aby mohl recenzi upravit)
+    db.ref(`users/${sellerName}/market/${itemId}/reviews/${currentUser}`).once('value').then(snap => {
+        if (snap.exists()) {
+            const existing = snap.val();
+            setReviewVote(existing.vote);
+            document.getElementById('rev-text').value = existing.text || '';
+        }
+    });
+
+    document.getElementById('material-detail-modal').classList.add('hidden');
+    document.getElementById('review-modal').classList.remove('hidden');
+}
+
+function setReviewVote(vote) {
+    currentReviewVote = vote;
+    document.getElementById('rev-btn-up').style.background = vote === 'up' ? '#e6ffe6' : '#fff';
+    document.getElementById('rev-btn-up').style.borderColor = vote === 'up' ? '#4CAF50' : '#000';
+    
+    document.getElementById('rev-btn-down').style.background = vote === 'down' ? '#ffe6e6' : '#fff';
+    document.getElementById('rev-btn-down').style.borderColor = vote === 'down' ? '#ff4d4d' : '#000';
+}
+
+function submitReview() {
+    if (!currentReviewVote) return alert("Musíš vybrat palec nahoru 👍 nebo dolů 👎!");
+
+    const text = document.getElementById('rev-text').value.trim();
+    const review = {
+        vote: currentReviewVote,
+        text: text,
+        date: new Date().toLocaleDateString('cs-CZ')
+    };
+
+    const btn = document.getElementById('submit-review-btn');
+    btn.disabled = true;
+    btn.innerText = "Ukládám...";
+
+    // Uložíme recenzi přímo pod jméno aktuálního hráče
+    db.ref(`users/${currentReviewSeller}/market/${currentReviewItemId}/reviews/${currentUser}`).set(review).then(() => {
+        alert("Hodnocení úspěšně uloženo!");
+        document.getElementById('review-modal').classList.add('hidden');
+        openMaterialDetail(currentReviewSeller, currentReviewItemId); // Návrat na detail
+        
+        if (currentReviewSeller !== currentUser) {
+            sendNotificationToUser(currentReviewSeller, `Hráč ${currentUser} ohodnotil tvůj materiál na burze!`);
+        }
+    }).finally(() => {
+        btn.disabled = false;
+        btn.innerText = "Uložit";
+    });
+}
+
+// ==========================================
+// --- GLOBÁLNÍ HRÁČSKÁ BURZA A KNIHOVNA ---
+// ==========================================
+async function renderGlobalMarket() {
+    const container = document.getElementById('player-shop-grid');
+    container.innerHTML = '<p style="text-align:center; width:100%;">Načítám všechny nabídky na trhu...</p>';
+    
+    // Zvýraznění záložek
+    document.getElementById('btn-ps-latest').classList.add('active');
+    document.getElementById('btn-ps-library').classList.remove('active');
+
+    try {
+        const snap = await db.ref('users').once('value');
+        const users = snap.val() || {};
+        let allItems = [];
+
+        // Projdeme všechny uživatele a vysajeme z nich materiály
+        for (let uname in users) {
+            if (users[uname].market) {
+                for (let itemId in users[uname].market) {
+                    let item = users[uname].market[itemId];
+                    item.id = itemId;
+                    item.seller = uname;
+                    allItems.push(item);
+                }
+            }
+        }
+
+        // Seřadíme od nejnovějšího
+        allItems.sort((a, b) => b.uploadedAt - a.uploadedAt);
+
+        if (allItems.length === 0) {
+            container.innerHTML = '<p style="text-align:center; width:100%;">Zatím nikdo do burzy nic nepřidal.</p>';
+            return;
+        }
+
+        let html = '';
+        allItems.forEach(item => {
+            html += `
+                <div class="market-item" onclick="openMaterialDetail('${item.seller}', '${item.id}')" style="cursor: pointer;">
+                    <div class="market-icon">📄</div>
+                    <h4 style="margin:5px 0;">${item.name}</h4>
+                    <p style="color:#666; font-size: 11px; margin-bottom:5px;">Od: <b>${item.seller}</b></p>
+                    <p style="color:#666; font-size: 12px; margin-bottom:10px;">Cena: <b>${item.price} 💰</b></p>
+                    <button class="buy-btn">Zobrazit detail</button>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = '<p style="text-align:center; color:red;">Chyba při načítání burzy.</p>';
+    }
+}
+
+function renderGlobalLibrary() {
+    const container = document.getElementById('player-shop-grid');
+    container.innerHTML = '<p style="text-align:center; width:100%;">Načítám tvou knihovnu...</p>';
+    
+    // Zvýraznění záložek
+    document.getElementById('btn-ps-latest').classList.remove('active');
+    document.getElementById('btn-ps-library').classList.add('active');
+
+    const boughtFiles = state.boughtItems || {};
+    
+    db.ref('users/' + currentUser + '/market').once('value').then(snap => {
+        const myUploads = snap.val() || {};
+        const allMyFiles = { ...boughtFiles, ...myUploads };
+
+        if (Object.keys(allMyFiles).length === 0) {
+            container.innerHTML = '<p style="text-align:center; width:100%;">Zatím nemáš v knihovně žádné materiály. Běž si nějaké koupit na burzu!</p>';
+            return;
+        }
+
+        let html = '';
+        for (let id in allMyFiles) {
+            const item = allMyFiles[id];
+            const seller = item.seller || currentUser; 
+            html += `
+                <div class="market-item" onclick="openMaterialDetail('${seller}', '${id}')" style="cursor: pointer;">
+                    <div class="market-icon">📚</div>
+                    <h4 style="margin:5px 0;">${item.name}</h4>
+                    <p style="color:#666; font-size: 11px; margin-bottom:10px;">Vlastněno</p>
+                    <button class="buy-btn" style="background:#2196F3; color:white;">Rozkliknout</button>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    });
+}
+
+// ==========================================
+// --- ÚPRAVA MATERIÁLU ---
+// ==========================================
+function openEditMaterialModal(itemId, currentName, currentDesc, currentPrice) {
+    document.getElementById('edit-material-id').value = itemId;
+    document.getElementById('edit-material-name').value = currentName;
+    document.getElementById('edit-material-desc').value = currentDesc;
+    document.getElementById('edit-material-price').value = currentPrice;
+    
+    document.getElementById('material-detail-modal').classList.add('hidden');
+    document.getElementById('edit-material-modal').classList.remove('hidden');
+}
+
+async function submitEditMaterial() {
+    const itemId = document.getElementById('edit-material-id').value;
+    const name = document.getElementById('edit-material-name').value.trim();
+    const desc = document.getElementById('edit-material-desc').value.trim();
+    const price = parseInt(document.getElementById('edit-material-price').value);
+
+    if (!name || isNaN(price) || price < 0) return alert("Vyplň správně název a cenu!");
+
+    const btn = document.getElementById('submit-edit-btn');
+    btn.innerText = "Ukládám...";
+    btn.disabled = true;
+
+    try {
+        await db.ref(`users/${currentUser}/market/${itemId}`).update({
+            name: name,
+            description: desc,
+            price: price
+        });
+
+        alert("Materiál úspěšně upraven!");
+        document.getElementById('edit-material-modal').classList.add('hidden');
+        
+        // Otevřeme znovu ten samý detail, aby se projevily změny
+        openMaterialDetail(currentUser, itemId);
+        
+        // Pokud jsme měli otevřený vlastní profil, tak ho obnovíme
+        if (!document.getElementById('feed-modal').classList.contains('hidden') && currentFeedContext.type === 'profile') {
+             switchProfileTab('market', currentUser);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Nastala chyba při úpravě.");
+    } finally {
+        btn.innerText = "Uložit změny";
+        btn.disabled = false;
+    }
+}
+
+function voteMaterial(sellerName, itemId, type) {
+    if (!currentUser) return alert("Pro hodnocení musíš být přihlášený!");
+    
+    const itemRef = db.ref(`users/${sellerName}/market/${itemId}`);
+    itemRef.once('value').then(snap => {
+        const item = snap.val();
+        if (!item) return;
+
+        let upvotes = item.upvotes || {};
+        let downvotes = item.downvotes || {};
+
+        if (type === 'up') {
+            if (upvotes[currentUser]) { delete upvotes[currentUser]; } 
+            else { upvotes[currentUser] = true; delete downvotes[currentUser]; }
+        } else {
+            if (downvotes[currentUser]) { delete downvotes[currentUser]; } 
+            else { downvotes[currentUser] = true; delete upvotes[currentUser]; }
+        }
+
+        itemRef.update({ upvotes, downvotes }).then(() => {
+            openMaterialDetail(sellerName, itemId); 
+        });
+    });
+}
+
+function addMaterialReview(sellerName, itemId) {
+    if (!currentUser) return alert("Musíš být přihlášený!");
+    
+    const isBought = state.boughtItems && state.boughtItems[itemId];
+    const isMyProfile = sellerName === currentUser;
+    if (!isBought && !isMyProfile) {
+        return alert("Recenzi můžeš napsat až po zakoupení materiálu! (Abychom předešli spamu.)");
+    }
+
+    const text = prompt("Napiš svou recenzi na tento materiál:");
+    if (!text || !text.trim()) return;
+
+    const review = {
+        author: currentUser,
+        text: text.trim(),
+        date: new Date().toLocaleDateString('cs-CZ')
+    };
+
+    const reviewsRef = db.ref(`users/${sellerName}/market/${itemId}/reviews`);
+    reviewsRef.once('value').then(snap => {
+        const reviews = snap.val() || [];
+        reviews.push(review);
+        reviewsRef.set(reviews).then(() => {
+            openMaterialDetail(sellerName, itemId);
+            if (!isMyProfile) {
+                sendNotificationToUser(sellerName, `Hráč ${currentUser} napsal novou recenzi k tvému materiálu!`);
+            }
+        });
+    });
+}
+
 function showNotifications() {
-    // Zajistíme, že máme notifikace v místním stavu
     if (!state.notifications) state.notifications = [];
 
     const adminArea = document.getElementById('admin-notification-area');
@@ -1249,7 +1962,6 @@ function showNotifications() {
         const isAdminUser = currentUser === 'admin' || currentUser === 'developer' || currentUser === 'Dan real';
         adminArea.style.display = isAdminUser ? 'flex' : 'none';
 
-        // Ujistíme se, že admin panel je vždy nad seznamem notifikací
         if (isAdminUser && adminArea.parentNode === notificationsList.parentNode) {
             notificationsList.parentNode.insertBefore(adminArea, notificationsList);
         }
@@ -1262,7 +1974,6 @@ function showNotifications() {
     }
 
     renderNotifications();
-
     document.getElementById('notifications-modal').classList.remove('hidden');
 }
 
@@ -1274,8 +1985,8 @@ function broadcastGlobalNotification(text) {
 
     const payload = {
         text: text.trim(),
-        date: new Date().toLocaleString('cs-CZ'),
-        id: Date.now(),
+        date: getTrueDate().toLocaleString('cs-CZ'), 
+        id: getTrueTime(),                           
         isGlobal: true
     };
 
@@ -1285,84 +1996,88 @@ function broadcastGlobalNotification(text) {
         const updates = {};
 
         Object.keys(users).forEach(username => {
-            const userNotifications = users[username].notifications || [];
+            let userNotifications = users[username].notifications || [];
+            if (!Array.isArray(userNotifications)) {
+                userNotifications = Object.values(userNotifications);
+            }
             userNotifications.unshift({ ...payload, read: false });
             updates[`users/${username}/notifications`] = userNotifications;
         });
 
         db.ref().update(updates).then(() => {
-            if (currentUser === 'admin' || currentUser === 'Dan real') {
+            if (currentUser === 'admin' || currentUser === 'Dan_admin' || currentUser === 'developer') {
                 addLocalNotification('Odesláno všem: ' + payload.text);
             }
             alert('Oznámení odesláno všem uživatelům.');
             renderNotifications();
+        }).catch(error => {
+            console.error("Chyba při odesílání hromadné zprávy:", error);
+            alert("Něco se pokazilo, zkontroluj konzoli.");
         });
     });
 }
 
-// --- OPRAVA ČASU U PŘÍSPĚVKU ---
 function editPostTime(timestamp) {
     if (!state.posts || !state.posts[timestamp]) return;
     const post = state.posts[timestamp];
 
-    // Zjistíme aktuální minuty
     const oldMinutes = Math.floor(post.totalSeconds / 60);
-    
-    // Použijeme jednoduchý prompt pro zadání nového času
     const input = prompt(`Tento záznam má aktuálně ${oldMinutes} minut.\nZadej NOVÝ (menší) čas v celých minutách:`);
-    if (!input) return; // Uživatel to zrušil
+    if (!input) return; 
 
     const newMinutes = parseInt(input);
-    
-    // Validace nesmyslů
     if (isNaN(newMinutes) || newMinutes < 0) {
         alert("Musíš zadat platné číslo!");
         return;
     }
-
-    // Ochrana proti podvádění (zvyšování času)
     if (newMinutes >= oldMinutes) {
         alert("Čas můžeš pouze snížit, abys opravil chybu. Zvyšovat čas nelze!");
         return;
     }
 
-    // --- MATEMATIKA ---
     const oldSeconds = post.totalSeconds;
     const newSeconds = newMinutes * 60;
-    const timeDiff = oldSeconds - newSeconds;
+    const diffSeconds = oldSeconds - newSeconds;
 
-    // Výpočet rozdílu mincí (1 coin = 180 sekund, tzn. 3 minuty)
-    // Pokud post staré coiny uložené nemá, spočítáme je
     const oldCoins = post.earnedCoins !== undefined ? post.earnedCoins : Math.floor(oldSeconds / 180);
     const newCoins = Math.floor(newSeconds / 180);
-    const coinDiff = oldCoins - newCoins;
+    const diffCoins = oldCoins - newCoins;
 
-    // --- AKTUALIZACE DAT ---
-    // 1. Upravíme samotný post
     post.totalSeconds = newSeconds;
     post.earnedCoins = newCoins;
-    
-    // Přidáme malou poznámku do popisku, aby všichni viděli, že byl hráč poctivý
     post.description = (post.description || "") + `\n(Upraveno: sníženo z ${oldMinutes} min)`;
 
-    // 2. Upravíme globální statistiky hráče (nesmí jít do mínusu)
-    state.total_cas = Math.max(0, (state.total_cas || 0) - timeDiff);
-    state.weekly_time = Math.max(0, (state.weekly_time || 0) - timeDiff);
-    state.coins = Math.max(0, (state.coins || 0) - coinDiff);
-    
-    // Pokud to byla dnešní session, odečteme i z dnešního času
+    state.total_cas = Math.max(0, (state.total_cas || 0) - diffSeconds);
+    state.coins = Math.max(0, (state.coins || 0) - diffCoins);
+
+    const postWeek = getCurrentWeekString(parseInt(timestamp));
+    const thisWeek = getCurrentWeekString();
+    if (postWeek === thisWeek) {
+        state.weekly_time = Math.max(0, (state.weekly_time || 0) - diffSeconds);
+    }
+
     const today = new Date().toDateString();
     const postDate = new Date(parseInt(timestamp)).toDateString();
     if (today === postDate) {
-        state.daily_time = Math.max(0, (state.daily_time || 0) - timeDiff);
+        state.daily_time = Math.max(0, (state.daily_time || 0) - diffSeconds);
     }
 
-    // 3. Uložíme a překreslíme
-    saveData(['posts', 'total_cas', 'weekly_time', 'coins', 'daily_time']);
+    saveData(['posts', 'total_cas', 'weekly_time', 'daily_time', 'coins']);
     updateHUD();
     showFeed(currentFeedContext.type, currentFeedContext.username);
+    alert(`Úspěšně opraveno! Čas byl snížen o ${Math.floor(diffSeconds / 60)} minut a bylo ti odečteno ${diffCoins} catcoinů.`);
+}
+
+function formatCommentText(text, validTags) {
+    let safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    if (!validTags || validTags.length === 0) return safeText;
+
+    validTags.forEach(tag => {
+        const regex = new RegExp(`@${tag}(?=\\s|$)`, 'g');
+        safeText = safeText.replace(regex, `<span class="tagged-user clickable-name" onclick="event.stopPropagation(); showFeed('profile', '${tag}')">@${tag}</span>`);
+    });
     
-    alert(`Úspěšně opraveno! Čas byl snížen o ${Math.floor(timeDiff / 60)} minut a bylo ti odečteno ${coinDiff} catcoinů.`);
+    return safeText;
 }
 
 function renderPosts(postsArray, container, defaultAuthor) {
@@ -1388,14 +2103,13 @@ function renderPosts(postsArray, container, defaultAuthor) {
 
         const likeIconSrc = isLiked ? 'assets/like_full.png' : 'assets/like_blank.png';
         
-        // --- NOVINKA: Zjistíme, jestli je hráč autorem příspěvku ---
         const isAuthor = (author === currentUser);
 
         const div = document.createElement('div');
         div.className = 'post-card';
         div.innerHTML = `
             <div class="post-header">
-                <span class="post-author">${author}</span>
+                <span class="post-author clickable-name" onclick="showFeed('profile', '${author}')">${author}</span>
                 <span class="post-date">${post.dateString}</span>
             </div>
             <h3 class="post-title">${post.title}</h3>
@@ -1417,13 +2131,13 @@ function renderPosts(postsArray, container, defaultAuthor) {
                 ${isAuthor ? `<button class="edit-btn action-button" style="padding: 6px 8px; font-size:14px; background-color: #f0ad4e;">✏️ Snížit čas</button>` : ''}
             </div>
             <div class="post-comments" style="margin-top: 8px; padding-left: 8px; border-left: 2px solid #ddd;">
-                ${post.comments && post.comments.length ? post.comments.map(c => `<div style="margin-bottom:4px;"><strong>${c.author}:</strong> ${c.text}</div>`).join('') : '<p style="opacity:0.7;">Žádné komentáře.</p>'}
+                ${post.comments && post.comments.length ? post.comments.map(c => `<div style="margin-bottom:4px;"><strong class="clickable-name" onclick="showFeed('profile', '${c.author}')">${c.author}:</strong> ${c.text}</div>`).join('') : '<p style="opacity:0.7;">Žádné komentáře.</p>'}
             </div>
         `;
 
         const likeBtn = div.querySelector('.like-btn');
         const commentBtn = div.querySelector('.comment-btn');
-        const editBtn = div.querySelector('.edit-btn'); // Tohle tu bude existovat jen pokud je isAuthor pravda
+        const editBtn = div.querySelector('.edit-btn');
 
         likeBtn.addEventListener('click', e => {
             e.stopPropagation();
@@ -1435,7 +2149,6 @@ function renderPosts(postsArray, container, defaultAuthor) {
             addComment(author, post.timestamp);
         });
 
-        // --- BINDING KLIKNUTÍ NA UPRAVIT ---
         if (editBtn) {
             editBtn.addEventListener('click', e => {
                 e.stopPropagation();
@@ -1471,28 +2184,8 @@ function toggleLike(author, timestamp) {
     }
 
     preservedFeedScroll = saveFeedScroll();
-
-    if (author === currentUser) {
-        if (!state.posts || !state.posts[timestamp]) return;
-        const post = state.posts[timestamp];
-        post.likes = post.likes || {};
-
-        if (post.likes[currentUser]) {
-            delete post.likes[currentUser];
-        } else {
-            post.likes[currentUser] = true;
-            if (author !== currentUser) {
-                sendNotificationToUser(author, `${currentUser} ti dal/la lajk na příspěvek: "${post.title || 'tvůj příspěvek'}"`);
-            }
-        }
-
-        saveData(['posts']);
-        updateHUD();
-        showFeed(currentFeedContext.type, currentFeedContext.username);
-        return;
-    }
-
     const likeRef = db.ref('users/' + author + '/posts/' + timestamp + '/likes');
+    
     likeRef.once('value').then(snapshot => {
         const likes = snapshot.val() || {};
 
@@ -1503,7 +2196,10 @@ function toggleLike(author, timestamp) {
         }
 
         likeRef.set(likes).then(() => {
-            if (likes[currentUser]) {
+            if (author === currentUser && state.posts && state.posts[timestamp]) {
+                state.posts[timestamp].likes = likes;
+            }
+            if (likes[currentUser] && author !== currentUser) {
                 sendNotificationToUser(author, `${currentUser} ti dal/la lajk na příspěvek.`);
             }
             showFeed(currentFeedContext.type, currentFeedContext.username);
@@ -1516,42 +2212,52 @@ function addComment(author, timestamp) {
         alert('Přihlas se, aby ses mohl/a komentovat příspěvky.');
         return;
     }
-    const text = prompt('Napiš komentář:', '');
+    const text = prompt('Napiš komentář (můžeš použít @jmeno pro označení parťáka):', '');
     if (!text || !text.trim()) return;
 
-    const comment = {
-        author: currentUser,
-        text: text.trim(),
-        date: new Date().toLocaleString('cs-CZ')
-    };
+    const commentText = text.trim();
+    const mentions = commentText.match(/@([^\s]+)/g) || [];
+    const potentialTags = mentions.map(m => m.substring(1));
 
-    if (author === currentUser) {
-        if (!state.posts || !state.posts[timestamp]) return;
-        const post = state.posts[timestamp];
-        post.comments = post.comments || [];
-        post.comments.push(comment);
+    const tagPromises = potentialTags.map(tag => {
+        return db.ref('users/' + tag).once('value').then(snap => snap.exists() ? tag : null);
+    });
 
-        saveData(['posts']);
-        updateHUD();
-        showFeed(currentFeedContext.type, currentFeedContext.username);
-        return;
-    }
+    Promise.all(tagPromises).then(results => {
+        const validTags = results.filter(tag => tag !== null);
 
-    sendNotificationToUser(author, `${currentUser} ti napsal/a komentář na tvůj příspěvek: "${comment.text}"`);
+        const comment = {
+            author: currentUser,
+            text: commentText,
+            date: new Date().toLocaleString('cs-CZ'), 
+            validTags: validTags
+        };
 
-    const commentsRef = db.ref('users/' + author + '/posts/' + timestamp + '/comments');
-    commentsRef.once('value').then(snapshot => {
-        const comments = snapshot.val() || [];
-        comments.push(comment);
-        commentsRef.set(comments).then(() => {
-            showFeed(currentFeedContext.type, currentFeedContext.username);
+        const commentsRef = db.ref('users/' + author + '/posts/' + timestamp + '/comments');
+        commentsRef.once('value').then(snapshot => {
+            const comments = snapshot.val() || [];
+            comments.push(comment);
+
+            commentsRef.set(comments).then(() => {
+                if (author === currentUser && state.posts && state.posts[timestamp]) {
+                    state.posts[timestamp].comments = comments;
+                }
+                validTags.forEach(taggedUser => {
+                    if (taggedUser !== currentUser) {
+                        sendNotificationToUser(taggedUser, `${currentUser} tě označil/a v komentáři: "${commentText}"`);
+                    }
+                });
+                const authorMentioned = validTags.includes(author);
+                if (author !== currentUser && !authorMentioned) {
+                    sendNotificationToUser(author, `${currentUser} ti napsal/a komentář: "${commentText}"`);
+                }
+                showFeed(currentFeedContext.type, currentFeedContext.username);
+            });
         });
     });
 }
 
-// --- EVENT LISTENERY ---
 function setupEventListeners() {
-
     document.getElementById('login-btn').addEventListener('click', loginUser);
     document.getElementById('register-link').addEventListener('click', registerUser);
 
@@ -1560,9 +2266,7 @@ function setupEventListeners() {
         const input = document.getElementById(id);
         if (input) {
             input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    loginUser();
-                }
+                if (e.key === 'Enter') loginUser();
             });
         }
     });
@@ -1570,7 +2274,6 @@ function setupEventListeners() {
     document.getElementById('logout-btn').addEventListener('click', () => {
         localStorage.removeItem('studywithcici_remembered_user');
         localStorage.removeItem('studywithcici_remembered_pass');
-        
         saveData(); 
         location.reload(); 
     });
@@ -1579,21 +2282,16 @@ function setupEventListeners() {
     document.getElementById('stop-study-btn').addEventListener('click', stopStudy);
     document.getElementById('pause-study-btn').addEventListener('click', togglePause);
 
-    // Skrývání a ukazování nastavení Pomodora
     document.getElementById('study-mode').addEventListener('change', (e) => {
         const pomodoroSettings = document.getElementById('pomodoro-settings');
-        if (e.target.value === 'pomodoro') {
-            pomodoroSettings.classList.remove('hidden');
-        } else {
-            pomodoroSettings.classList.add('hidden');
-        }
+        if (e.target.value === 'pomodoro') pomodoroSettings.classList.remove('hidden');
+        else pomodoroSettings.classList.add('hidden');
     });
 
     document.getElementById('open-shop-btn').addEventListener('click', () => {
         renderShop(currentShopCategory);
         document.getElementById('shop-modal').classList.remove('hidden');
     });
-
     document.getElementById('close-shop-btn').addEventListener('click', () => {
         document.getElementById('shop-modal').classList.add('hidden');
     });
@@ -1602,9 +2300,10 @@ function setupEventListeners() {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
-            
-            currentShopCategory = e.target.getAttribute('data-category');
-            renderShop(currentShopCategory);
+            if (e.target.hasAttribute('data-category')) {
+                currentShopCategory = e.target.getAttribute('data-category');
+                renderShop(currentShopCategory);
+            }
         });
     });
 
@@ -1612,16 +2311,12 @@ function setupEventListeners() {
         document.getElementById('confirm-modal').classList.add('hidden');
         if (confirmCallback) confirmCallback(true);
     });
-
     document.getElementById('confirm-no').addEventListener('click', () => {
         document.getElementById('confirm-modal').classList.add('hidden');
         if (confirmCallback) confirmCallback(false);
     });
     
-    // Upravené otevírání žebříčku (ukáže rovnou weekly)
     document.getElementById('open-leaderboard-btn').addEventListener('click', () => showLeaderboard('weekly'));
-    
-    // Tlačítka pro přepínání uvnitř okna
     document.getElementById('btn-lb-weekly').addEventListener('click', () => showLeaderboard('weekly'));
     document.getElementById('btn-lb-alltime').addEventListener('click', () => showLeaderboard('alltime'));
     document.getElementById('close-leaderboard-btn').addEventListener('click', () => {
@@ -1632,33 +2327,21 @@ function setupEventListeners() {
         renderFriends();
         document.getElementById('friends-modal').classList.remove('hidden');
     });
-
     document.getElementById('close-friends-btn').addEventListener('click', () => {
         document.getElementById('friends-modal').classList.add('hidden');
     });
-
     document.getElementById('add-friend-btn').addEventListener('click', addFriend);
     
     document.getElementById('streak-selector').addEventListener('change', (e) => {
         state.active_streak = e.target.value;
-        saveData(['active_streak']); // Uloží to hned do Firebase
-        updateHUD(); // Hned to překreslí nápis
+        saveData(['active_streak']); 
+        updateHUD(); 
     });
 
     document.getElementById('save-post-btn').addEventListener('click', savePost);
-    
-    document.getElementById('open-feed-btn').addEventListener('click', () => {
-        showFeed('friends');
-    });
-
-    document.getElementById('open-notifications-btn').addEventListener('click', () => {
-        showNotifications();
-    });
-
-    document.getElementById('close-feed-btn').addEventListener('click', () => {
-        document.getElementById('feed-modal').classList.add('hidden');
-    });
-
+    document.getElementById('open-feed-btn').addEventListener('click', () => showFeed('friends'));
+    document.getElementById('open-notifications-btn').addEventListener('click', () => showNotifications());
+    document.getElementById('close-feed-btn').addEventListener('click', () => document.getElementById('feed-modal').classList.add('hidden'));
     document.getElementById('close-notifications-btn').addEventListener('click', () => {
         markAllNotificationsRead();
         document.getElementById('notifications-modal').classList.add('hidden');
@@ -1672,6 +2355,21 @@ function setupEventListeners() {
         textEl.style.height = 'auto';
     });
 
+    const cancelUploadBtn = document.getElementById('cancel-upload-btn');
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', () => document.getElementById('upload-modal').classList.add('hidden'));
+    }
+
+    const submitUploadBtn = document.getElementById('submit-upload-btn');
+    if (submitUploadBtn) {
+        submitUploadBtn.addEventListener('click', submitUpload);
+    }
+
+    const closeMaterialBtn = document.getElementById('close-material-btn');
+    if (closeMaterialBtn) {
+        closeMaterialBtn.addEventListener('click', () => document.getElementById('material-detail-modal').classList.add('hidden'));
+    }
+
     const globalNotifTextarea = document.getElementById('global-notif-text');
     if (globalNotifTextarea) {
         globalNotifTextarea.addEventListener('input', () => {
@@ -1680,52 +2378,73 @@ function setupEventListeners() {
         });
     }
     
-    // Obnova Wake Locku, pokud se hráč přepne do jiné záložky a vrátí se
     document.addEventListener('visibilitychange', async () => {
-        if (wakeLock !== null && document.visibilityState === 'visible') {
-            // Pokud měl zapnutý zámek a vrátil se na stránku, nahodíme ho znovu
-            zapniWakeLock();
-        }
+        if (wakeLock !== null && document.visibilityState === 'visible') zapniWakeLock();
     });
+    // --- HRÁČSKÁ BURZA A ÚPRAVY ---
+    document.getElementById('open-player-shop-btn').addEventListener('click', () => {
+        document.getElementById('player-shop-modal').classList.remove('hidden');
+        renderGlobalMarket();
+    });
+
+    document.getElementById('close-player-shop-btn').addEventListener('click', () => {
+        document.getElementById('player-shop-modal').classList.add('hidden');
+    });
+
+    document.getElementById('btn-ps-latest').addEventListener('click', renderGlobalMarket);
+    document.getElementById('btn-ps-library').addEventListener('click', renderGlobalLibrary);
+
+    document.getElementById('cancel-edit-btn').addEventListener('click', () => {
+        document.getElementById('edit-material-modal').classList.add('hidden');
+    });
+    
+    document.getElementById('submit-edit-btn').addEventListener('click', submitEditMaterial);
+
+    // --- RECENZE MATERIÁLŮ ---
+    const cancelReviewBtn = document.getElementById('cancel-review-btn');
+    if (cancelReviewBtn) {
+        cancelReviewBtn.addEventListener('click', () => {
+            document.getElementById('review-modal').classList.add('hidden');
+            // Vrátíme se zpět na detail materiálu
+            openMaterialDetail(currentReviewSeller, currentReviewItemId);
+        });
+    }
+
+    const submitReviewBtn = document.getElementById('submit-review-btn');
+    if (submitReviewBtn) {
+        submitReviewBtn.addEventListener('click', submitReview);
+    }
+
+    const revBtnUp = document.getElementById('rev-btn-up');
+    if (revBtnUp) {
+        revBtnUp.addEventListener('click', () => setReviewVote('up'));
+    }
+
+    const revBtnDown = document.getElementById('rev-btn-down');
+    if (revBtnDown) {
+        revBtnDown.addEventListener('click', () => setReviewVote('down'));
+    }
 }
 
-
-// Spuštění po načtení stránky
 window.onload = init;
 
-
-// --- REGISTRACE SERVICE WORKERA A AUTOMATICKÝ UPDATE ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
             .then(registration => {
                 console.log('PWA zaregistrováno.');
-                
-                // NOVÉ: Okamžitá a agresivní kontrola updatu při každém zapnutí
                 registration.update(); 
-                
-                // Můžeš přidat i pravidelnou kontrolu (např. každou hodinu, pokud má hráč hru zapnutou dlouho)
-                setInterval(() => {
-                    registration.update();
-                }, 1000 * 60 * 60);
+                setInterval(() => { registration.update(); }, 1000 * 60 * 60);
             })
-            .catch(error => {
-                console.error('Chyba registrace PWA:', error);
-            });
+            .catch(error => console.error('Chyba registrace PWA:', error));
 
-        // TOTO ZAŘÍDÍ AUTOMATICKÝ REFRESH PŘI UPDATU (Ale bezpečně!)
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!refreshing) {
-                // Zkontrolujeme, jestli běží časovač NEBO jestli hráč zrovna píše post
                 const isStudying = !document.getElementById('study-modal').classList.contains('hidden');
                 const isPosting = !document.getElementById('post-create-modal').classList.contains('hidden');
                 
-                if (isStudying || isPosting) {
-                    // Hráč se učí nebo zrovna píše deník! Necháme ho v klidu dokončit práci.
-                    console.log("Nová verze stažena, ale hráč je zaneprázdněn. Čekám na manuální refresh.");
-                } else {
-                    // Hráč je v menu, v obchodě nebo u přátel, můžeme bezpečně refreshnout
+                if (!isStudying && !isPosting) {
                     window.location.reload();
                     refreshing = true;
                 }
@@ -1733,3 +2452,47 @@ if ('serviceWorker' in navigator) {
         });
     });
 }
+
+let deferredPrompt;
+const pwaInstallOverlay = document.getElementById('pwa-install-overlay');
+const btnInstallPwa = document.getElementById('btn-install-pwa');
+const btnSkipInstall = document.getElementById('btn-skip-install');
+
+function isIos() { return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase()); }
+function isStandalone() {
+    return (window.matchMedia('(display-mode: standalone)').matches) || 
+           (window.matchMedia('(display-mode: fullscreen)').matches) || 
+           (window.navigator.standalone === true);
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    pwaInstallOverlay.classList.remove('hidden');
+});
+
+window.addEventListener('load', () => {
+    if (isIos() && !isStandalone()) pwaInstallOverlay.classList.remove('hidden');
+});
+
+if (btnInstallPwa) {
+    btnInstallPwa.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            pwaInstallOverlay.classList.add('hidden');
+        } else if (isIos()) {
+            alert("Pro instalaci na iPhone/iPad:\n\n1. Klikni dole (nebo nahoře) v Safari na ikonu sdílení (čtvereček se šipkou).\n2. Vyber možnost 'Přidat na plochu'.");
+        }
+    });
+}
+
+if (btnSkipInstall) {
+    btnSkipInstall.addEventListener('click', () => pwaInstallOverlay.classList.add('hidden'));
+}
+
+window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    if(pwaInstallOverlay) pwaInstallOverlay.classList.add('hidden');
+});

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Study With Čiči</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" href="style.css?v=42">
+    <link rel="stylesheet" href="style.css?v=48">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7f7f7f">
 </head>
@@ -17,7 +17,6 @@
                 <h2>Studuj s Čiči!</h2>
                 <input type="text" id="username-input" placeholder="Tvoje jméno" autocomplete="off">
                 <input type="password" id="password-input" placeholder="Tvoje heslo">
-                
                 <div class="auth-buttons">
                     <button id="login-btn" class="action-button" style="width: 100%;">Přihlásit se</button>
                     <p class="register-hint">Nemáš účet? <span id="register-link" class="clickable-link">Zaregistruj se</span></p>
@@ -31,18 +30,31 @@
                 <span id="coin-count">0</span>
             </div> 
             <div class="hud-buttons">
-                <button id="open-shop-btn" class="image-button">
-                    <img src="assets/obchod_button.png" alt="Obchod">
-                </button>
-                <button id="open-leaderboard-btn" class="image-button">
-                    <img src="assets/trophy_button.png?v=2" alt="Žebříček">
-                </button>
-                <button id="open-friends-btn" class="image-button">
-                    <img src="assets/friends_button.png?v=2">
-                </button>
-                <button id="open-feed-btn" class="image-button">
-                    <img src="assets/feed_button.png?v=2" alt="Obchod">
-                </button>
+                <div style="display: flex; flex-direction: row; gap: 10px;">
+                    
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button id="open-shop-btn" class="image-button">
+                            <img src="assets/obchod_button.png" alt="Obchod">
+                        </button>
+                        <button id="open-leaderboard-btn" class="image-button">
+                            <img src="assets/trophy_button.png?v=2" alt="Žebříček">
+                        </button>
+                        <button id="open-friends-btn" class="image-button">
+                            <img src="assets/friends_button.png?v=2">
+                        </button>
+                        <button id="open-feed-btn" class="image-button">
+                            <img src="assets/feed_button.png?v=2" alt="Příspěvky">
+                        </button>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button id="open-player-shop-btn" class="image-button" style="position: relative;">
+                            <img src="assets/player_shop_button.png" >
+                        </button>
+                        </div>
+
+                </div>
+
                 <button id="open-notifications-btn" class="image-button notification-btn">
                     <img src="assets/notification_button.png?v=3" alt="Oznámení">
                     <span id="notification-badge" class="notification-badge hidden">0</span>
@@ -68,7 +80,6 @@
                         <option value="pomodoro">Pomodoro (fáze)</option>
                     </select>
                 </div>
-
                 <div class="study-settings hidden" id="pomodoro-settings">
                     <div class="setting-group">
                         <label>Učení (min)</label>
@@ -80,7 +91,6 @@
                     </div>
                 </div>
             </div>
-
             <button id="start-study-btn" class="action-button main-action">Začni se učit</button>
         </main>
 
@@ -94,12 +104,9 @@
                     <span id="all-streaks-display" class="all-streaks">0🔥 0⭐ 0💎</span>
                 </div>
             </div>
-
             <hr class="hud-separator">
-            
             <p>Dneska ses učil:</p>
             <p id="daily-time-display">0 hodin 0 minut a 0 sekund</p>
-            
             <div class="streak-selector-container">
                 <label for="streak-selector">Streak na profilu: </label>
                 <select id="streak-selector">
@@ -111,8 +118,7 @@
             </div>
             <p class="total-time-label">Celkově už se učíš:</p>
             <p id="total-time-display" class="total-time-value">0 hodin 0 minut a 0 sekund</p>
-            
-            <p class="version">v0.1.6 (Týdenní turnaj)</p>
+            <p class="version">v0.1.8 (burza)</p>
         </footer>
 
         <button id="logout-btn">Odhlásit se</button>
@@ -122,7 +128,6 @@
                 <h3 id="current-phase-text" class="phase-title">📚 Čas se učit!</h3>
                 <h2 id="phase-timer">00:00:00</h2>
                 <p id="total-session-time" class="session-total">Učíš se už: 00:00:00</p>
-                
                 <div class="study-buttons">
                     <button id="pause-study-btn" class="action-button pause-button">⏸ Pauza</button>
                     <button id="stop-study-btn" class="action-button stop-button">⏹ Ukončit</button>
@@ -134,41 +139,34 @@
             <div class="modal-content shop-content"> 
                 <button id="close-leaderboard-btn" class="close-btn">X</button>
                 <h2 class="shop-title">Elita národa</h2>
-
                 <div class="shop-tabs" id="leaderboard-tabs" style="margin-bottom: 10px;">
                     <button class="tab-btn active" id="btn-lb-weekly">Týdenní turnaj</button>
                     <button class="tab-btn" id="btn-lb-alltime">Celkově</button>
                 </div>
-
                 <div id="leaderboard-list"></div>
             </div>
         </div>
+
         <div id="friends-modal" class="modal hidden">
             <div class="modal-content shop-content">
                 <button id="close-friends-btn" class="close-btn">X</button>
                 <h2 class="shop-title">Moji parťáci</h2>
-        
                 <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <input type="text" id="friend-input" placeholder="Jméno kamaráda..." 
-                        style="flex-grow: 1; padding: 10px; border: 3px solid #000; border-radius: 8px;">
+                    <input type="text" id="friend-input" placeholder="Jméno kamaráda..." style="flex-grow: 1; padding: 10px; border: 3px solid #000; border-radius: 8px;">
                     <button id="add-friend-btn" class="action-button" style="padding: 10px 20px; font-size: 16px;">Přidat</button>
+                </div>
+                <div id="friends-list"></div>
             </div>
-
-        <div id="friends-list">
-            </div>
-    </div>
-</div>
+        </div>
 
         <div id="shop-modal" class="modal hidden">
             <div class="modal-content shop-content">
-                
                 <div class="shop-coins">
                     <img src="assets/catcoin.png">
                     <span id="shop-coin-count">0</span>
                 </div>
                 <button id="close-shop-btn" class="close-btn">X</button>
                 <h2 class="shop-title">Obchod</h2>
-                
                 <div class="shop-tabs">
                     <button class="tab-btn active" data-category="skin">Skiny</button>
                     <button class="tab-btn" data-category="cepice">Čepice</button>
@@ -176,7 +174,6 @@
                     <button class="tab-btn" data-category="obojek">Obojky</button>
                     <button class="tab-btn" data-category="triko">Trika</button>
                 </div>
-                
                 <div id="shop-items-grid" class="items-grid"></div>
             </div>
         </div>
@@ -186,8 +183,7 @@
                 <h2>Konec učení!</h2>
                 <p>Zapiš si, co ses naučil (nebo to nech prázdné):</p>
                 <input type="text" id="post-title" placeholder="Co ses učil? (např. Biologie)" autocomplete="off">
-                <textarea id="post-desc" placeholder="Bližší popis učiva (volitelné)..." rows="3" 
-                    style="width: 80%; padding: 10px; border: 3px solid #000; border-radius: 8px; font-family: inherit; resize: none; margin-top: 5px;"></textarea>
+                <textarea id="post-desc" placeholder="Bližší popis učiva (volitelné)..." rows="3" style="width: 80%; padding: 10px; border: 3px solid #000; border-radius: 8px; font-family: inherit; resize: none; margin-top: 5px;"></textarea>
                 <button id="save-post-btn" class="action-button" style="margin-top: 15px;">Uložit post a vybrat odměnu</button>
             </div>
         </div>
@@ -222,8 +218,107 @@
             </div>
         </div>
 
-    </div> <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+        <div id="upload-modal" class="modal hidden">
+            <div class="modal-content login-content">
+                <h2>Přidat materiál na burzu</h2>
+                <p>Nahrávej zápisky nebo taháky. (Max 5MB)</p>
+                <input type="text" id="material-name" placeholder="Název (např. Zápisky z Dějepisu)" style="width: 90%; margin-bottom: 10px; padding: 8px;">
+                <textarea id="material-desc" placeholder="Popis materiálu (např. Obsahuje 20 stránek výpisků, zaměřeno na novověk...)" rows="3" style="width: 90%; margin-bottom: 10px; padding: 8px; resize: none; font-family: inherit;"></textarea>
+                <input type="number" id="material-price" placeholder="Cena v Catcoinech (např. 50)" style="width: 90%; margin-bottom: 10px; padding: 8px;">
+                <input type="file" id="material-file" style="margin-bottom: 15px; width: 90%;">
+                <div class="auth-buttons" style="flex-direction: row; justify-content: center; gap: 10px;">
+                    <button id="submit-upload-btn" class="action-button" style="padding: 10px 20px; font-size: 18px;">Nahrát</button>
+                    <button id="cancel-upload-btn" class="action-button" style="padding: 10px 20px; font-size: 18px; background: #ff4d4d; color: white;">Zrušit</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="material-detail-modal" class="modal hidden">
+            <div class="modal-content shop-content" style="max-width: 550px; height: auto; max-height: 90vh; padding: 25px;">
+                <button id="close-material-btn" class="close-btn">X</button>
+                
+                <h2 id="md-title" class="shop-title" style="margin-bottom: 5px; font-size: clamp(24px, 4vw, 32px);">Název materiálu</h2>
+                <p id="md-author" style="text-align: center; color: #666; font-weight: bold; margin-bottom: 15px;">Autor: ---</p>
+                
+                <div id="md-desc" class="md-desc-box">Popis chybí.</div>
+
+                <div class="md-votes-container">
+                    <div class="md-vote-display md-vote-up">👍 <span id="md-up-count">0</span></div>
+                    <div class="md-vote-display md-vote-down">👎 <span id="md-down-count">0</span></div>
+                </div>
+
+                <div id="md-action-container" class="md-action-container" style="text-align: center;"></div>
+
+                <h3 class="md-reviews-header">Hodnocení studentů</h3>
+                <div id="md-reviews" class="md-reviews-list"></div>
+                
+                <button id="md-add-review-btn" class="action-button md-add-review">+ Přidat vlastní recenzi</button>
+            </div>
+        </div>
+
+        <div id="player-shop-modal" class="modal hidden">
+            <div class="modal-content shop-content" style="max-width: 800px;">
+                <button id="close-player-shop-btn" class="close-btn">X</button>
+                <h2 class="shop-title">Hráčská burza</h2>
+                
+                <div class="shop-tabs" style="margin-bottom: 15px;">
+                    <button id="btn-ps-latest" class="tab-btn active">Nejnovější materiály</button>
+                    <button id="btn-ps-library" class="tab-btn">Moje knihovna</button>
+                </div>
+                
+                <div id="player-shop-grid" class="items-grid" style="max-height: 60vh; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <div id="edit-material-modal" class="modal hidden">
+            <div class="modal-content login-content">
+                <h2>Upravit materiál</h2>
+                <input type="hidden" id="edit-material-id">
+                
+                <input type="text" id="edit-material-name" placeholder="Název" style="width: 90%; margin-bottom: 10px; padding: 8px;">
+                <textarea id="edit-material-desc" placeholder="Popis materiálu..." rows="3" style="width: 90%; margin-bottom: 10px; padding: 8px; resize: none; font-family: inherit;"></textarea>
+                <input type="number" id="edit-material-price" placeholder="Cena" style="width: 90%; margin-bottom: 15px; padding: 8px;">
+                
+                <div class="auth-buttons" style="flex-direction: row; justify-content: center; gap: 10px;">
+                    <button id="submit-edit-btn" class="action-button" style="padding: 10px 20px; font-size: 18px;">Uložit změny</button>
+                    <button id="cancel-edit-btn" class="action-button" style="padding: 10px 20px; font-size: 18px; background: #ff4d4d; color: white;">Zrušit</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="review-modal" class="modal hidden">
+            <div class="modal-content login-content" style="max-width: 450px;">
+                <h2>Hodnotit materiál</h2>
+                <p>Jak se ti materiál líbil? (Povinné)</p>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 15px; justify-content: center; width: 100%;">
+                    <button id="rev-btn-up" class="action-button" style="padding: 10px 30px; font-size: 30px; background: #fff;">👍</button>
+                    <button id="rev-btn-down" class="action-button" style="padding: 10px 30px; font-size: 30px; background: #fff;">👎</button>
+                </div>
+                
+                <textarea id="rev-text" placeholder="Slovní hodnocení (volitelné)..." rows="4" style="width: 90%; margin-bottom: 15px; padding: 10px; resize: none; font-family: inherit; border: 3px solid #000; border-radius: 8px; font-size: 16px;"></textarea>
+                
+                <div class="auth-buttons" style="flex-direction: row; justify-content: center; gap: 10px; width: 100%;">
+                    <button id="submit-review-btn" class="action-button" style="padding: 10px 20px; font-size: 18px; flex-grow: 1;">Uložit</button>
+                    <button id="cancel-review-btn" class="action-button" style="padding: 10px 20px; font-size: 18px; background: #ff4d4d; color: white; flex-grow: 1;">Zrušit</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="pwa-install-overlay" class="hidden">
+            <div class="modal-install">
+                <div class="modal-icon"><img src="ikona-512.png" alt="ikona"></div>
+                <h2>Nainstaluj si StudyWČiči!</h2>
+                <p>StudyWČiči je progresivní webová aplikace, díky tomu ji můžu provozovat zcela zdarma, instaluje se proto ale z webového prohlížeče.</p>
+                <button id="btn-install-pwa" class="action-button" style="width: 100%; font-size: clamp(16px, 2vw, 24px); padding: 15px;">Nainstalovat hru</button>
+                <button id="btn-skip-install" class="btn-text">Pokračovat ve webové verzi</button>
+            </div>
+        </div>
+    </div> 
+    
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-    <script src="script.js?v=42"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-storage-compat.js"></script>
+    <script src="script.js?v=48"></script>
 </body>
 </html>

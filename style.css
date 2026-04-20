@@ -177,13 +177,14 @@ body {
 
 .modal-content {
     background: #fff;
-    padding: clamp(15px, 3vh, 30px); /* Responzivní padding */
+    padding: clamp(10px, 2vh, 30px); /* Trochu menší padding pro záchranu místa */
     border-radius: 15px;
     border: 4px solid #000;
     position: relative;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    max-width: 95vw; /* Zabránění přetečení přes okraje na mobilu */
+    max-width: 95vw; 
     max-height: 95vh;
+    overflow-y: auto; /* 🌟 TOTO ZACHRÁNÍ VĚC: Povolí scrollování uvnitř okna */
 }
 
 /* Učící okno */
@@ -606,14 +607,14 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2vh;
+    gap: clamp(5px, 1vh, 15px); /* Zmenšil jsem mezery mezi políčky z 2vh na flexibilní */
     width: clamp(300px, 80vw, 500px);
     text-align: center;
 }
 
 .login-content h2 {
-    font-size: clamp(24px, 4vw, 40px);
-    margin-bottom: 1vh;
+    font-size: clamp(20px, 4vw, 40px);
+    margin-bottom: 0; /* Odstranil jsem zbytečný margin pod nadpisem */
 }
 
 #username-input {
@@ -1448,4 +1449,338 @@ body {
         left: 10px;
         font-size: 20px;
     }
+}
+
+/* Zvýraznění tagnutých uživatelů v komentářích */
+.tagged-user {
+    color: #1f3d7a;
+    font-weight: bold;
+    background-color: #e6f0ff;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid #cce0ff;
+    transition: all 0.2s; /* Plynulý přechod */
+}
+
+/* Hover efekt, aby bylo jasné, že je to odkaz */
+.tagged-user.clickable-name:hover {
+    background-color: #cce0ff;
+    text-decoration: underline;
+    transform: scale(1.05);
+    display: inline-block; /* Nutné pro transformaci (zvětšení) */
+}
+
+
+/* ==========================================================================
+   PWA INSTALAČNÍ STĚNA (INSTALL WALL)
+   ========================================================================== */
+#pwa-install-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(3, 3, 3, 0.3); /* Tmavé herní pozadí */
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px); /* Jemné rozmazání hry v pozadí */
+}
+
+.modal-install {
+    background: #fff;
+    padding: clamp(20px, 4vh, 40px);
+    border-radius: 15px;
+    border: 4px solid #000;
+    text-align: center;
+    width: clamp(300px, 80vw, 500px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-icon img {
+    width: clamp(60px, 15vw, 100px);
+    margin-bottom: 20px;
+    border-radius: 15px;
+    border: 3px solid #000;
+}
+
+.modal-install h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: clamp(24px, 4vw, 36px);
+    color: #333;
+}
+
+.modal-install p {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.5;
+    font-size: clamp(14px, 2vw, 18px);
+}
+
+.btn-text {
+    background: none;
+    border: none;
+    color: #777;
+    margin-top: 20px;
+    font-size: clamp(12px, 2vw, 16px);
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+    font-weight: bold;
+    transition: color 0.2s;
+}
+
+.btn-text:hover {
+    color: #333;
+}
+
+/* 🌟 MAGIE: Skryje okno natvrdo, pokud už aplikace běží jako samostatná hra */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+    #pwa-install-overlay {
+        display: none !important;
+    }
+}
+
+/* --- VIZUÁLNÍ PROFIL --- */
+.profile-header-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px;
+    background: #f0f0f0;
+    border-radius: 12px;
+    border: 3px solid #000;
+    margin-bottom: 15px;
+}
+
+.profile-avatar-big {
+    position: relative;
+    width: 80px;
+    height: 100px;
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+/* OPRAVA OBLEČENÍ: Absolute pozice, aby se obrázky skládaly přes sebe */
+.profile-avatar-big img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.profile-stats-info {
+    text-align: left;
+}
+
+.profile-stats-info p {
+    margin: 3px 0;
+    font-size: 14px;
+}
+
+.profile-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+/* --- BURZA (MARKET) --- */
+.market-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+    padding: 5px;
+}
+
+.market-item {
+    background: #fff;
+    border: 3px solid #000;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    box-shadow: 0 4px 0 #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.market-icon {
+    font-size: 40px;
+    margin-bottom: 5px;
+}
+
+.buy-btn {
+    background: #f7ff6a;
+    border: 2px solid #000;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: auto;
+    transition: transform 0.1s;
+}
+
+.buy-btn:hover {
+    transform: scale(1.05);
+}
+
+/* ==========================================================================
+   DETAIL MATERIÁLU (BURZA)
+   ========================================================================== */
+
+/* Rámeček s popisem */
+.md-desc-box {
+    background: #fff;
+    border: 3px solid #000;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.05); /* Vnitřní stín pro "vyhloubený" efekt */
+    font-size: 15px;
+    line-height: 1.5;
+    color: #333;
+    white-space: pre-wrap; /* Zachová odřádkování */
+}
+
+/* Kontejner na palce */
+.md-votes-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+/* Tlačítka pro palce */
+.md-vote-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 25px;
+    font-size: 18px;
+    font-weight: bold;
+    border: 3px solid #000;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #000; /* Typický herní 3D efekt */
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.md-vote-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 0px 0 #000;
+}
+
+.md-vote-up { background: #e6ffe6; }
+.md-vote-up:hover { background: #ccffcc; }
+.md-vote-down { background: #ffe6e6; }
+.md-vote-down:hover { background: #ffcccc; }
+
+/* Obal pro akční tlačítko (Koupit / Smazat) */
+.md-action-container {
+    margin-bottom: 30px;
+}
+
+/* Hlavička pro sekci recenzí */
+.md-reviews-header {
+    font-size: 20px;
+    border-bottom: 3px solid #000;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+}
+
+/* Seznam recenzí (Scrollbar) */
+.md-reviews-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-right: 10px;
+}
+
+/* Jedna konkrétní recenze */
+.md-review-item {
+    background: #f9f9f9;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+
+.md-review-author {
+    font-weight: bold;
+    color: #1f3d7a;
+    margin-right: 5px;
+}
+
+.md-review-date {
+    font-size: 11px;
+    color: #888;
+}
+
+.md-review-text {
+    margin-top: 5px;
+    font-size: 14px;
+    color: #444;
+}
+
+/* Tlačítko na přidání recenze */
+.md-add-review {
+    width: 100%;
+    font-size: 16px;
+    padding: 12px;
+    background-color: #eee;
+}
+
+.md-add-review:hover {
+    background-color: #ddd;
+}
+
+/* Tímto zajistíme, že potvrzovací okno bude VŽDY úplně nejvýš nad vším ostatním */
+#confirm-modal {
+    z-index: 100 !important;
+}
+
+/* Globální okno burzy ponecháme na základní hladině */
+#player-shop-modal {
+    z-index: 50;
+}
+
+/* Detail materiálu musí být výš, aby burzu překryl */
+#material-detail-modal {
+    z-index: 70 !important;
+}
+
+/* Potvrzovací okno (Ano/Ne) musí být vždy úplně nejvýš */
+#confirm-modal {
+    z-index: 100 !important;
+}
+
+/* Okno pro úpravu materiálu by mělo být také nad burzou */
+#edit-material-modal {
+    z-index: 80 !important;
+}
+
+/* Pasivní zobrazení palců na detailu materiálu */
+.md-vote-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 25px;
+    font-size: 18px;
+    font-weight: bold;
+    border: 3px solid #000;
+    border-radius: 12px;
+    /* Místo vystouplého tlačítka to vypadá spíš jako zabořený panel */
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.1); 
+    cursor: default;
 }
